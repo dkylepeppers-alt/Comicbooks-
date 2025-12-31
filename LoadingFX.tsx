@@ -17,8 +17,9 @@ export const LoadingFX: React.FC = () => {
     // Progress Data from Engine
     const progress = state.loadingProgress;
 
-    // Calculate percentage
+    // Calculate percentage - default to indeterminate loading if no progress data
     const percentage = progress ? Math.round((progress.current / progress.total) * 100) : 0;
+    const hasProgress = progress !== null;
 
     // Particle animation effect
     useEffect(() => {
@@ -37,12 +38,7 @@ export const LoadingFX: React.FC = () => {
 
     // Elapsed time tracker
     useEffect(() => {
-        if (!progress) {
-            setElapsedTime(0);
-            return;
-        }
-
-        const startTime = progress.startTime || Date.now();
+        const startTime = progress?.startTime || Date.now();
         const interval = setInterval(() => {
             const elapsed = Math.floor((Date.now() - startTime) / 1000);
             setElapsedTime(elapsed);
@@ -60,6 +56,11 @@ export const LoadingFX: React.FC = () => {
                   40% { transform: translate(-50%, -50%) scale(1.0) rotate(var(--rot)); opacity: 1; }
                   80% { opacity: 1; }
                   100% { transform: translate(-50%, -50%) scale(1.1) rotate(var(--rot)); opacity: 0; }
+              }
+              @keyframes slide {
+                  0% { transform: translateX(-100%); }
+                  50% { transform: translateX(250%); }
+                  100% { transform: translateX(-100%); }
               }
             `}</style>
             <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-gray-100 to-white opacity-50" />
@@ -90,13 +91,13 @@ export const LoadingFX: React.FC = () => {
                 )}
 
                 {/* Progress Bar */}
-                {progress && (
-                    <div className="w-full space-y-1">
-                        <div className="w-full h-8 border-4 border-black bg-white relative shadow-[4px_4px_0px_rgba(0,0,0,0.5)] overflow-hidden">
-                            {/* Animated background stripes */}
-                            <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent animate-pulse" />
+                <div className="w-full space-y-1">
+                    <div className="w-full h-8 border-4 border-black bg-white relative shadow-[4px_4px_0px_rgba(0,0,0,0.5)] overflow-hidden">
+                        {/* Animated background stripes */}
+                        <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent animate-pulse" />
 
-                            {/* Progress fill with gradient */}
+                        {/* Progress fill with gradient */}
+                        {hasProgress ? (
                             <div
                                 className="h-full bg-gradient-to-r from-yellow-300 via-yellow-400 to-orange-400 border-r-2 border-black transition-all duration-500 ease-out relative"
                                 style={{ width: `${percentage}%` }}
@@ -104,25 +105,38 @@ export const LoadingFX: React.FC = () => {
                                 {/* Shine effect */}
                                 <div className="absolute inset-0 bg-gradient-to-b from-white/30 via-transparent to-transparent" />
                             </div>
-
-                            {/* Text overlay */}
-                            <div className="absolute inset-0 flex items-center justify-center gap-2">
-                                <span className="font-comic text-sm font-bold text-black drop-shadow-[1px_1px_0px_rgba(255,255,255,0.8)]">
-                                    {percentage}%
-                                </span>
-                                <span className="font-comic text-xs font-bold text-black/70 drop-shadow-[1px_1px_0px_rgba(255,255,255,0.8)]">
-                                    ({progress.current}/{progress.total})
-                                </span>
+                        ) : (
+                            /* Indeterminate progress animation */
+                            <div className="h-full relative overflow-hidden">
+                                <div className="absolute inset-0 bg-gradient-to-r from-yellow-300 via-yellow-400 to-orange-400 animate-pulse" style={{ width: '40%', animation: 'slide 1.5s ease-in-out infinite' }} />
                             </div>
-                        </div>
+                        )}
 
-                        {/* Elapsed time */}
-                        <div className="flex justify-between items-center text-xs font-comic">
-                            <span className="text-gray-600">⏱️ {Math.floor(elapsedTime / 60)}:{(elapsedTime % 60).toString().padStart(2, '0')}</span>
-                            <span className="text-gray-500 italic">AI is thinking...</span>
+                        {/* Text overlay */}
+                        <div className="absolute inset-0 flex items-center justify-center gap-2">
+                            {hasProgress ? (
+                                <>
+                                    <span className="font-comic text-sm font-bold text-black drop-shadow-[1px_1px_0px_rgba(255,255,255,0.8)]">
+                                        {percentage}%
+                                    </span>
+                                    <span className="font-comic text-xs font-bold text-black/70 drop-shadow-[1px_1px_0px_rgba(255,255,255,0.8)]">
+                                        ({progress.current}/{progress.total})
+                                    </span>
+                                </>
+                            ) : (
+                                <span className="font-comic text-sm font-bold text-black drop-shadow-[1px_1px_0px_rgba(255,255,255,0.8)] animate-pulse">
+                                    Loading...
+                                </span>
+                            )}
                         </div>
                     </div>
-                )}
+
+                    {/* Elapsed time */}
+                    <div className="flex justify-between items-center text-xs font-comic">
+                        <span className="text-gray-600">⏱️ {Math.floor(elapsedTime / 60)}:{(elapsedTime % 60).toString().padStart(2, '0')}</span>
+                        <span className="text-gray-500 italic">AI is thinking...</span>
+                    </div>
+                </div>
             </div>
         </div>
     );
