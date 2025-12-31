@@ -48,6 +48,8 @@ export default defineConfig({
         navigateFallback: '/index.html',
         // Disable minification for Termux compatibility
         sourcemap: false,
+        // Disable all minification in service worker generation
+        mode: 'development',
         runtimeCaching: [
           {
             urlPattern: /^https:\/\/cdn\.tailwindcss\.com\/.*/i,
