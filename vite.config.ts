@@ -17,6 +17,8 @@ export default defineConfig({
         background_color: '#000000',
         display: 'standalone',
         orientation: 'portrait',
+        scope: '/',
+        start_url: '/',
         icons: [
           {
             src: 'pwa-192x192.png',
@@ -38,6 +40,7 @@ export default defineConfig({
       },
       workbox: {
         globPatterns: ['**/*.{js,css,html,ico,png,svg}'],
+        navigateFallback: '/index.html',
         runtimeCaching: [
           {
             urlPattern: /^https:\/\/fonts\.googleapis\.com\/.*/i,
@@ -46,12 +49,26 @@ export default defineConfig({
               cacheName: 'google-fonts-cache',
               expiration: {
                 maxEntries: 10,
-                maxAgeSeconds: 60 * 60 * 24 * 365 // <== 365 days
+                maxAgeSeconds: 60 * 60 * 24 * 365 // 1 year
               },
               cacheableResponse: {
                 statuses: [0, 200]
               }
             }
+          },
+          {
+             urlPattern: /^https:\/\/fonts\.gstatic\.com\/.*/i,
+             handler: 'CacheFirst',
+             options: {
+               cacheName: 'gstatic-fonts-cache',
+               expiration: {
+                 maxEntries: 10,
+                 maxAgeSeconds: 60 * 60 * 24 * 365
+               },
+               cacheableResponse: {
+                 statuses: [0, 200]
+               }
+             }
           }
         ]
       }

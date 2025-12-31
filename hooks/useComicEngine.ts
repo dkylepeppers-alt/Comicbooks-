@@ -38,6 +38,7 @@ const initialState: ComicState = {
     tone: TONES[0],
     language: LANGUAGES[0].code,
     customPremise: "",
+    openingPrompt: "",
     richMode: true,
   },
   loadingProgress: null,
@@ -117,7 +118,6 @@ export const useComicEngine = () => {
   const saveWorld = useCallback(async (w: World) => {
       await StorageService.saveWorld(w);
       dispatch({ type: 'ADD_WORLD', payload: w });
-      // Re-load to ensure sort order
       const worlds = await StorageService.getWorlds();
       dispatch({ type: 'LOAD_WORLDS', payload: worlds });
   }, []);
@@ -128,7 +128,16 @@ export const useComicEngine = () => {
 
   const updateConfig = useCallback((updates: Partial<StoryConfig>) => dispatch({ type: 'UPDATE_CONFIG', payload: updates }), []);
   
-  const generateBatch = useCallback(async (startPage: number, count: number, currentFaces: ComicFace[], currentHero: Persona, currentFriend: Persona | null, currentConfig: StoryConfig, currentWorld: World | null) => {
+  const generateBatch = useCallback(async (
+      startPage: number, 
+      count: number, 
+      currentFaces: ComicFace[], 
+      currentHero: Persona, 
+      currentFriend: Persona | null, 
+      currentConfig: StoryConfig, 
+      currentWorld: World | null,
+      userGuidance?: string
+  ) => {
     const pagesToGen: number[] = [];
     for (let i = 0; i < count; i++) {
         const p = startPage + i;
@@ -155,7 +164,6 @@ export const useComicEngine = () => {
     let completed = 0;
     const total = pagesToGen.length;
 
-    // Dispatch initial progress
     dispatch({ 
         type: 'SET_LOADING_PROGRESS', 
         payload: { current: 0, total, label: `Generating Page ${startPage}` } 
@@ -177,7 +185,9 @@ export const useComicEngine = () => {
         if (type === 'back_cover') {
            beat = { scene: "Thematic teaser image", choices: [], focus_char: 'other' as const };
         } else {
-           beat = await AiService.generateBeat(batchHistory, pageNum, isDecision, currentConfig, currentHero, currentFriend, currentWorld);
+           // Apply guidance only to the first page of the batch to set direction
+           const batchGuidance = (pageNum === startPage) ? userGuidance : undefined;
+           beat = await AiService.generateBeat(batchHistory, pageNum, isDecision, currentConfig, currentHero, currentFriend, currentWorld, batchGuidance);
         }
         
         let activeFriend = currentFriend;
@@ -226,7 +236,6 @@ export const useComicEngine = () => {
       }
     } finally {
       pagesToGen.forEach(p => generatingPagesRef.current.delete(p));
-      // Clear progress after short delay
       setTimeout(() => dispatch({ type: 'SET_LOADING_PROGRESS', payload: null }), 1000);
     }
   }, [setFriend]);
@@ -260,29 +269,35 @@ export const useComicEngine = () => {
     setTimeout(() => {
         dispatch({ type: 'TRANSITION_COMPLETE' });
         
-        // Start first batch immediately
+        // Start first batch (Pages 1-2) with Opening Prompt
         dispatch({ type: 'SET_LOADING_PROGRESS', payload: { current: 3, total: 3, label: "Starting Issue #1..." } });
-        generateBatch(1, INITIAL_PAGES, [coverFace], state.hero!, state.friend, state.config, state.currentWorld);
+        generateBatch(1, INITIAL_PAGES, [coverFace], state.hero!, state.friend, state.config, state.currentWorld, state.config.openingPrompt);
         
-        setTimeout(() => {
-           generateBatch(3, 3, [coverFace], state.hero!, state.friend, state.config, state.currentWorld);
-        }, 500); 
-        
+        // Removed subsequent auto-batches to allow user direction
     }, 1100);
 
   }, [state.config, state.hero, state.friend, state.currentWorld, generateBatch]);
 
+  const continueStory = useCallback((userGuidance: string) => {
+      const currentMax = Math.max(...state.comicFaces.map(f => f.pageIndex || 0));
+      if (currentMax < TOTAL_PAGES) {
+          const nextPage = currentMax + 1;
+          // Generate small batch (2 pages) to keep control tight
+          generateBatch(nextPage, BATCH_SIZE, state.comicFaces, state.hero!, state.friend!, state.config, state.currentWorld, userGuidance);
+          // Auto flip to next sheet (assuming user is on the Director page which is technically +1 from current max render)
+          dispatch({ type: 'SET_SHEET_INDEX', payload: state.currentSheetIndex + 1 });
+      }
+  }, [state.comicFaces, state.hero, state.friend, state.config, state.currentWorld, generateBatch, state.currentSheetIndex]);
+
   const handleChoice = useCallback(async (pageIndex: number, choice: string) => {
     dispatch({ type: 'UPDATE_FACE', payload: { id: `page-${pageIndex}`, updates: { resolvedChoice: choice } } });
-    
-    // Calculate next batch
-    const maxPage = Math.max(...state.comicFaces.map(f => f.pageIndex || 0));
-    
-    if (maxPage + 1 <= TOTAL_PAGES) {
-      const updatedFaces = state.comicFaces.map(f => f.pageIndex === pageIndex ? { ...f, resolvedChoice: choice } : f);
-      generateBatch(maxPage + 1, BATCH_SIZE, updatedFaces, state.hero!, state.friend, state.config, state.currentWorld);
+    // For decisions, we treat the choice AS the guidance for the next batch
+    const currentMax = Math.max(...state.comicFaces.map(f => f.pageIndex || 0));
+    if (currentMax + 1 <= TOTAL_PAGES) {
+      generateBatch(currentMax + 1, BATCH_SIZE, state.comicFaces, state.hero!, state.friend!, state.config, state.currentWorld, `User chose: ${choice}`);
+      dispatch({ type: 'SET_SHEET_INDEX', payload: state.currentSheetIndex + 1 });
     }
-  }, [state.comicFaces, state.hero, state.friend, state.config, state.currentWorld, generateBatch]);
+  }, [state.comicFaces, state.hero, state.friend, state.config, state.currentWorld, generateBatch, state.currentSheetIndex]);
 
   const setSheetIndex = useCallback((idx: number) => dispatch({ type: 'SET_SHEET_INDEX', payload: idx }), []);
   const reset = useCallback(() => { 
@@ -303,6 +318,7 @@ export const useComicEngine = () => {
       deleteWorld,
       updateConfig,
       launchStory,
+      continueStory, // Exported
       handleChoice,
       setSheetIndex,
       reset,

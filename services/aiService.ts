@@ -53,7 +53,8 @@ export const AiService = {
     config: StoryConfig,
     hero: Persona,
     friend: Persona | null,
-    world: World | null
+    world: World | null,
+    userGuidance?: string // NEW: Direct user control
   ): Promise<Beat> {
     const isFinalPage = pageNum === MAX_STORY_PAGES;
     const langName = LANGUAGES.find(l => l.code === config.language)?.name || "English";
@@ -93,41 +94,37 @@ export const AiService = {
     // Determine Core Story Driver
     let coreDriver = `GENRE: ${config.genre}. TONE: ${config.tone}.`;
     if (config.genre === 'Custom') {
-        coreDriver = `STORY PREMISE: ${config.customPremise || "A totally unique, unpredictable adventure"}. (Follow this premise strictly over standard genre tropes).`;
+        coreDriver = `STORY PREMISE: ${config.customPremise || "A totally unique, unpredictable adventure"}.`;
     }
     
-    // Guardrails
-    const guardrails = `
-    NEGATIVE CONSTRAINTS:
-    1. UNLESS GENRE IS "Dark Sci-Fi" OR "Superhero Action" OR "Custom": DO NOT use technical jargon like "Quantum", "Timeline", "Portal", "Multiverse", or "Singularity".
-    2. IF GENRE IS "Teen Drama" OR "Lighthearted Comedy": The "stakes" must be SOCIAL, EMOTIONAL, or PERSONAL. Do NOT make it life-or-death. Keep it grounded.
-    3. Avoid "The artifact" or "The device" unless established earlier.
-    `;
+    // User Guidance - The most important input
+    let directionInstruction = "";
+    if (userGuidance) {
+        directionInstruction = `
+        CRITICAL - DIRECTIVE FROM THE DIRECTOR:
+        The user explicitly demands the following happens on this page: "${userGuidance}".
+        YOU MUST ADHERE TO THIS DIRECTION ABOVE ALL ELSE. Do not deviate.
+        `;
+    }
 
     // Base Instruction
-    let instruction = `Continue the story. ALL OUTPUT TEXT (Captions, Dialogue, Choices) MUST BE IN ${langName.toUpperCase()}. ${coreDriver} ${guardrails}`;
+    let instruction = `Continue the story. ALL OUTPUT TEXT (Captions, Dialogue, Choices) MUST BE IN ${langName.toUpperCase()}. ${coreDriver}`;
     if (config.richMode) {
         instruction += " RICH/NOVEL MODE ENABLED. Prioritize deeper character thoughts, descriptive captions, and meaningful dialogue exchanges over short punchlines.";
     }
 
     if (isFinalPage) {
-        instruction += " FINAL PAGE. KARMIC CLIFFHANGER REQUIRED. You MUST explicitly reference the User's choice from PAGE 3 in the narrative and show how that specific philosophy led to this conclusion. Text must end with 'TO BE CONTINUED...' (or localized equivalent).";
+        instruction += " FINAL PAGE. KARMIC CLIFFHANGER REQUIRED. Text must end with 'TO BE CONTINUED...' (or localized equivalent).";
     } else if (isDecisionPage) {
         instruction += " End with a PSYCHOLOGICAL choice about VALUES, RELATIONSHIPS, or RISK. (e.g., Truth vs. Safety, Forgive vs. Avenge). The options must NOT be simple physical actions like 'Go Left'.";
     } else {
         if (pageNum === 1) {
             instruction += " INCITING INCIDENT. An event disrupts the status quo. Establish the genre's intended mood.";
-        } else if (pageNum <= 4) {
-            instruction += " RISING ACTION. The heroes engage with the new situation. Focus on dialogue, character dynamics, and initial challenges.";
-        } else if (pageNum <= 8) {
-            instruction += " COMPLICATION. A twist occurs! A secret is revealed, a misunderstanding deepens, or the path is blocked.";
-        } else {
-            instruction += " CLIMAX. The confrontation with the main conflict.";
         }
     }
 
-    const capLimit = config.richMode ? "max 35 words. Detailed narration or internal monologue" : "max 15 words";
-    const diaLimit = config.richMode ? "max 30 words. Rich, character-driven speech" : "max 12 words";
+    const capLimit = config.richMode ? "max 35 words. Detailed narration" : "max 15 words";
+    const diaLimit = config.richMode ? "max 30 words. Rich, character-driven" : "max 12 words";
 
     const prompt = `
 You are writing a comic book script. PAGE ${pageNum} of ${MAX_STORY_PAGES}.
@@ -142,12 +139,13 @@ CHARACTERS:
 PREVIOUS PANELS (READ CAREFULLY):
 ${historyText.length > 0 ? historyText : "Start the adventure."}
 
+${directionInstruction}
+
 RULES:
 1. NO REPETITION. Do not use the same captions or dialogue from previous pages.
 2. IF CO-STAR IS ACTIVE, THEY MUST APPEAR FREQUENTLY.
-3. VARIETY. If page ${pageNum-1} was an action shot, make this one a reaction or wide shot.
-4. LANGUAGE: All user-facing text MUST be in ${langName}.
-5. Avoid saying "CO-star" and "hero" in the text captions. Use names if established, or generic descriptors.
+3. LANGUAGE: All user-facing text MUST be in ${langName}.
+4. Avoid saying "CO-star" and "hero" in the text captions. Use names if established.
 
 INSTRUCTION: ${instruction}
 
@@ -169,12 +167,10 @@ OUTPUT STRICT JSON ONLY (No markdown formatting):
         });
         
         let rawText = res.text || "{}";
-        // Clean markdown code blocks if present
         rawText = rawText.replace(/```json/g, '').replace(/```/g, '').trim();
         
         const parsed = JSON.parse(rawText);
         
-        // Sanitize output
         if (parsed.dialogue) parsed.dialogue = parsed.dialogue.replace(/^[\w\s\-]+:\s*/i, '').replace(/["']/g, '').trim();
         if (parsed.caption) parsed.caption = parsed.caption.replace(/^[\w\s\-]+:\s*/i, '').trim();
         if (!isDecisionPage) parsed.choices = [];

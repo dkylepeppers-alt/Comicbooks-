@@ -9,6 +9,7 @@ import { useState, useEffect } from 'react';
 export const usePWA = () => {
   const [installPrompt, setInstallPrompt] = useState<any>(null);
   const [isInstallable, setIsInstallable] = useState(false);
+  const [isInstalled, setIsInstalled] = useState(false);
 
   useEffect(() => {
     const handleBeforeInstallPrompt = (e: any) => {
@@ -19,10 +20,24 @@ export const usePWA = () => {
       setIsInstallable(true);
     };
 
+    const handleAppInstalled = () => {
+        console.log('PWA Installed successfully');
+        setIsInstalled(true);
+        setIsInstallable(false);
+        setInstallPrompt(null);
+    };
+
     window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+    window.addEventListener('appinstalled', handleAppInstalled);
+
+    // Check if already running in standalone mode (PWA)
+    if (window.matchMedia('(display-mode: standalone)').matches || (window.navigator as any).standalone === true) {
+        setIsInstalled(true);
+    }
 
     return () => {
       window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+      window.removeEventListener('appinstalled', handleAppInstalled);
     };
   }, []);
 
@@ -45,5 +60,5 @@ export const usePWA = () => {
     setInstallPrompt(null);
   };
 
-  return { isInstallable, promptInstall };
+  return { isInstallable, isInstalled, promptInstall };
 };

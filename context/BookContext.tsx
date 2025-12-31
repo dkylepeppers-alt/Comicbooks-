@@ -21,6 +21,7 @@ interface BookContextType {
     deleteWorld: (id: string) => void;
     updateConfig: (updates: Partial<StoryConfig>) => void;
     launchStory: () => void;
+    continueStory: (userGuidance: string) => void;
     handleChoice: (pageIndex: number, choice: string) => void;
     setSheetIndex: (idx: number) => void;
     reset: () => void;

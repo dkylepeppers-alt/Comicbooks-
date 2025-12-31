@@ -25,8 +25,10 @@ interface SetupProps {
     onLaunch: () => void;
 }
 
-const Footer = ({ isInstallable, onInstall, onConnectStorage }: { isInstallable: boolean, onInstall: () => void, onConnectStorage: () => void }) => {
+const Footer = ({ isInstallable, isInstalled, onInstall, onConnectStorage }: { isInstallable: boolean, isInstalled: boolean, onInstall: () => void, onConnectStorage: () => void }) => {
   const [remixIndex, setRemixIndex] = useState(0);
+  const [isOnline, setIsOnline] = useState(navigator.onLine);
+  
   const remixes = [
     "Add sounds to panels",
     "Animate panels with Veo 3",
@@ -41,24 +43,49 @@ const Footer = ({ isInstallable, onInstall, onConnectStorage }: { isInstallable:
     const interval = setInterval(() => {
       setRemixIndex(prev => (prev + 1) % remixes.length);
     }, 3000);
-    return () => clearInterval(interval);
+    
+    const handleOnline = () => setIsOnline(true);
+    const handleOffline = () => setIsOnline(false);
+    
+    window.addEventListener('online', handleOnline);
+    window.addEventListener('offline', handleOffline);
+    
+    return () => {
+        clearInterval(interval);
+        window.removeEventListener('online', handleOnline);
+        window.removeEventListener('offline', handleOffline);
+    }
   }, []);
 
   return (
-    <div className="fixed bottom-0 left-0 right-0 bg-black text-white py-3 px-6 flex flex-col md:flex-row justify-between items-center z-[300] border-t-4 border-yellow-400 font-comic">
+    <div className={`fixed bottom-0 left-0 right-0 py-3 px-6 flex flex-col md:flex-row justify-between items-center z-[300] border-t-4 border-yellow-400 font-comic transition-colors ${isOnline ? 'bg-black text-white' : 'bg-red-800 text-gray-200'}`}>
         <div className="flex items-center gap-2 text-lg md:text-xl">
-            <span className="text-yellow-400 font-bold">REMIX IDEA:</span>
-            <span className="animate-pulse">{remixes[remixIndex]}</span>
+            {!isOnline ? (
+                <span className="text-white font-bold animate-pulse">⚠️ OFFLINE MODE - CHECK CONNECTION</span>
+            ) : (
+                <>
+                    <span className="text-yellow-400 font-bold">REMIX IDEA:</span>
+                    <span className="animate-pulse">{remixes[remixIndex]}</span>
+                </>
+            )}
         </div>
         <div className="flex items-center gap-4 mt-2 md:mt-0">
             <button onClick={onConnectStorage} className="comic-btn bg-blue-600 text-white text-xs px-2 py-1 hover:bg-blue-500 uppercase">
                 📂 Connect Local Library
             </button>
+            
             {isInstallable && (
                 <button onClick={onInstall} className="comic-btn bg-white text-black text-xs px-2 py-1 hover:bg-gray-200 uppercase animate-bounce">
                     📲 Install App
                 </button>
             )}
+            
+            {isInstalled && (
+                <span className="text-green-400 text-xs font-bold border border-green-400 px-2 py-1 rounded">
+                    ✓ INSTALLED
+                </span>
+            )}
+
             <span className="text-gray-500 text-sm hidden md:inline">Build with Gemini</span>
         </div>
     </div>
@@ -66,13 +93,12 @@ const Footer = ({ isInstallable, onInstall, onConnectStorage }: { isInstallable:
 };
 
 export const Setup: React.FC<SetupProps> = (props) => {
-    const { isInstallable, promptInstall } = usePWA();
+    const { isInstallable, isInstalled, promptInstall } = usePWA();
     const { state, actions } = useBook();
-    // Unified "Common Stable" for all characters
     const [savedCharacters, setSavedCharacters] = useState<(Persona & {id:string})[]>([]);
     const [showWorldBuilder, setShowWorldBuilder] = useState(false);
+    const [isOnline, setIsOnline] = useState(navigator.onLine);
     
-    // Refresh library from storage
     const refreshLibrary = () => {
         StorageService.getCharacters().then(setSavedCharacters);
     };
@@ -80,9 +106,18 @@ export const Setup: React.FC<SetupProps> = (props) => {
     useEffect(() => {
         refreshLibrary();
         actions.loadWorlds();
+
+        const handleOnline = () => setIsOnline(true);
+        const handleOffline = () => setIsOnline(false);
+        window.addEventListener('online', handleOnline);
+        window.addEventListener('offline', handleOffline);
+
+        return () => {
+            window.removeEventListener('online', handleOnline);
+            window.removeEventListener('offline', handleOffline);
+        };
     }, [props.show]);
 
-    // Auto-save Hero when modified (and refresh stable)
     useEffect(() => {
         if (props.hero?.name && props.hero.name.length > 2 && props.hero.base64) {
             const timer = setTimeout(() => {
@@ -92,7 +127,6 @@ export const Setup: React.FC<SetupProps> = (props) => {
         }
     }, [props.hero]);
 
-    // Auto-save Friend when modified (and refresh stable)
     useEffect(() => {
         if (props.friend?.name && props.friend.name.length > 2 && props.friend.base64) {
             const timer = setTimeout(() => {
@@ -102,8 +136,6 @@ export const Setup: React.FC<SetupProps> = (props) => {
         }
     }, [props.friend]);
 
-    // Filter characters if a world is selected (to prioritize linked ones)
-    // MOVED UP to prevent React Error #300 (fewer hooks rendered)
     const sortedCharacters = useMemo(() => {
         if (!state.currentWorld) return savedCharacters;
         return [...savedCharacters].sort((a, b) => {
@@ -187,7 +219,6 @@ export const Setup: React.FC<SetupProps> = (props) => {
                             <span>1. THE CAST</span>
                         </div>
                         
-                        {/* HERO BOX */}
                         <div className={`p-3 border-4 border-dashed ${props.hero ? 'border-green-500 bg-green-50' : 'border-blue-300 bg-blue-50'} transition-colors relative group`}>
                             <div className="flex justify-between items-center mb-2">
                                 <p className="font-comic text-lg uppercase font-bold text-blue-900">HERO (REQUIRED)</p>
@@ -236,7 +267,6 @@ export const Setup: React.FC<SetupProps> = (props) => {
                             )}
                         </div>
 
-                        {/* CO-STAR BOX (Refactored to mirror Hero Box) */}
                         <div className={`p-3 border-4 border-dashed ${props.friend ? 'border-green-500 bg-green-50' : 'border-purple-300 bg-purple-50'} transition-colors`}>
                             <div className="flex justify-between items-center mb-1">
                                 <p className="font-comic text-lg uppercase font-bold text-purple-900">CO-STAR</p>
@@ -289,7 +319,6 @@ export const Setup: React.FC<SetupProps> = (props) => {
                         <div className="font-comic text-xl text-black border-b-4 border-black mb-1">2. THE WORLD</div>
                         
                         <div className="bg-gray-100 p-3 border-4 border-black h-full flex flex-col relative overflow-hidden">
-                             {/* World Bg Pattern */}
                              <div className="absolute inset-0 opacity-5 pointer-events-none" style={{backgroundImage: 'radial-gradient(circle, #000 1px, transparent 1px)', backgroundSize: '10px 10px'}}></div>
 
                              <div className="relative z-10 flex flex-col gap-3 h-full">
@@ -355,12 +384,16 @@ export const Setup: React.FC<SetupProps> = (props) => {
                                     </select>
                                 </div>
 
-                                {props.config.genre === 'Custom' && (
-                                    <div className="mb-2">
-                                        <p className="font-comic text-base mb-1 font-bold text-gray-800">PREMISE</p>
-                                        <textarea value={props.config.customPremise} onChange={(e) => props.onConfigChange({ customPremise: e.target.value })} placeholder="Enter your story premise..." className="w-full p-1 border-2 border-black font-comic text-lg h-16 resize-none shadow-[3px_3px_0px_rgba(0,0,0,0.2)]" />
-                                    </div>
-                                )}
+                                <div className="mb-2">
+                                    <p className="font-comic text-base mb-1 font-bold text-gray-800">OPENING SCENE / PROMPT</p>
+                                    <textarea 
+                                        value={props.config.openingPrompt} 
+                                        onChange={(e) => props.onConfigChange({ openingPrompt: e.target.value })} 
+                                        placeholder="E.g., The hero wakes up in a dumpster behind a neon-lit sushi bar..." 
+                                        className="w-full p-2 border-2 border-black font-comic text-lg h-24 resize-none shadow-[3px_3px_0px_rgba(0,0,0,0.2)] focus:outline-none leading-tight" 
+                                    />
+                                    <p className="text-[10px] text-gray-500 mt-1">Be specific! This sets the initial direction.</p>
+                                </div>
                             </div>
                             
                             <label className="flex items-center gap-2 font-comic text-base cursor-pointer text-black mt-1 p-1 hover:bg-yellow-100 rounded border-2 border-transparent hover:border-yellow-300 transition-colors">
@@ -371,14 +404,14 @@ export const Setup: React.FC<SetupProps> = (props) => {
                     </div>
                 </div>
 
-                <button onClick={props.onLaunch} disabled={!props.hero || props.isTransitioning} className="comic-btn bg-red-600 text-white text-3xl px-6 py-3 w-full hover:bg-red-500 disabled:bg-gray-400 disabled:cursor-not-allowed uppercase tracking-wider">
-                    {props.isTransitioning ? 'LAUNCHING...' : 'START ADVENTURE!'}
+                <button onClick={props.onLaunch} disabled={!props.hero || props.isTransitioning || !isOnline} className="comic-btn bg-red-600 text-white text-3xl px-6 py-3 w-full hover:bg-red-500 disabled:bg-gray-400 disabled:cursor-not-allowed uppercase tracking-wider">
+                    {props.isTransitioning ? 'LAUNCHING...' : isOnline ? 'START ADVENTURE!' : 'OFFLINE - CANNOT LAUNCH'}
                 </button>
             </div>
           </div>
         </div>
 
-        <Footer isInstallable={isInstallable} onInstall={promptInstall} onConnectStorage={handleConnectStorage} />
+        <Footer isInstallable={isInstallable} isInstalled={isInstalled} onInstall={promptInstall} onConnectStorage={handleConnectStorage} />
         </>
     );
 }
