@@ -18,7 +18,7 @@ This guide will help you install and run the Infinite Heroes comic book app on y
 Open Termux and run:
 
 ```bash
-pkg update && pkg install -y git && git clone <your-repo-url> && cd Comicbooks- && bash install-termux.sh
+pkg update && pkg install -y git && git clone https://github.com/dkylepeppers-alt/Comicbooks- && cd Comicbooks- && bash install-termux.sh
 ```
 
 Or if you already have the repository:
@@ -62,7 +62,7 @@ Grant the storage permission when prompted. This allows the app to save data.
 
 ```bash
 cd ~/storage/shared
-git clone <your-repo-url>
+git clone https://github.com/dkylepeppers-alt/Comicbooks-
 cd Comicbooks-
 ```
 
@@ -111,9 +111,13 @@ The server will start on `http://localhost:5173` (or another port if 5173 is bus
 
 1. Find your Android device's IP address:
    ```bash
-   ifconfig wlan0
+   ip addr show wlan0
    ```
-   Look for `inet addr` (e.g., `192.168.1.100`)
+   Or if `ip` command is not available:
+   ```bash
+   ifconfig
+   ```
+   Look for your WiFi interface (usually wlan0) and find the `inet` address (e.g., `192.168.1.100`)
 
 2. On another device, open a browser and go to:
    ```
@@ -191,7 +195,11 @@ To allow access from other devices, Vite automatically binds to `0.0.0.0`. If yo
 
 3. **Check for port conflicts:**
    ```bash
-   lsof -i :5173
+   netstat -tuln | grep 5173
+   ```
+   Or use:
+   ```bash
+   ss -tuln | grep 5173
    ```
 
 ### Can't Access from Browser
