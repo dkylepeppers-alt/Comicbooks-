@@ -12,10 +12,15 @@ const LOADING_FX = ["POW!", "BAM!", "ZAP!", "KRAK!", "SKREEE!", "WHOOSH!", "THWI
 export const LoadingFX: React.FC = () => {
     const { state } = useBook();
     const [particles, setParticles] = useState<{id: number, text: string, x: string, y: string, rot: number, color: string}[]>([]);
-    
+    const [elapsedTime, setElapsedTime] = useState(0);
+
     // Progress Data from Engine
     const progress = state.loadingProgress;
 
+    // Calculate percentage
+    const percentage = progress ? Math.round((progress.current / progress.total) * 100) : 0;
+
+    // Particle animation effect
     useEffect(() => {
         const interval = setInterval(() => {
             const id = Date.now();
@@ -29,6 +34,22 @@ export const LoadingFX: React.FC = () => {
         }, 600);
         return () => clearInterval(interval);
     }, []);
+
+    // Elapsed time tracker
+    useEffect(() => {
+        if (!progress) {
+            setElapsedTime(0);
+            return;
+        }
+
+        const startTime = progress.startTime || Date.now();
+        const interval = setInterval(() => {
+            const elapsed = Math.floor((Date.now() - startTime) / 1000);
+            setElapsedTime(elapsed);
+        }, 100);
+
+        return () => clearInterval(interval);
+    }, [progress]);
 
     return (
         <div className="w-full h-full bg-white overflow-hidden relative border-r-4 border-gray-300">
@@ -51,20 +72,55 @@ export const LoadingFX: React.FC = () => {
                 </div>
             ))}
             
-            <div className="absolute bottom-16 inset-x-6 z-20 flex flex-col items-center gap-2">
-                <p className="font-comic text-xl text-black bg-white/80 px-2 border-2 border-black animate-pulse tracking-widest">
-                    {progress ? progress.label.toUpperCase() : "INKING PAGE..."}
-                </p>
-                
+            <div className="absolute bottom-16 inset-x-6 z-20 flex flex-col items-center gap-3">
+                {/* Main Status Label */}
+                <div className="relative">
+                    <p className="font-comic text-xl text-black bg-white/90 px-4 py-1 border-2 border-black tracking-widest shadow-[2px_2px_0px_rgba(0,0,0,0.5)]">
+                        {progress ? progress.label.toUpperCase() : "INKING PAGE..."}
+                    </p>
+                    {/* Pulsing indicator dot */}
+                    <div className="absolute -right-1 -top-1 w-3 h-3 bg-red-500 border-2 border-black rounded-full animate-pulse" />
+                </div>
+
+                {/* Substep (if available) */}
+                {progress?.substep && (
+                    <p className="font-comic text-sm text-gray-700 bg-yellow-100/80 px-3 py-1 border border-black italic">
+                        {progress.substep}
+                    </p>
+                )}
+
+                {/* Progress Bar */}
                 {progress && (
-                    <div className="w-full h-6 border-4 border-black bg-white relative shadow-[4px_4px_0px_rgba(0,0,0,0.5)]">
-                        <div 
-                            className="h-full bg-yellow-400 border-r-2 border-black transition-all duration-300 ease-out"
-                            style={{ width: `${(progress.current / progress.total) * 100}%` }}
-                        />
-                        <span className="absolute inset-0 flex items-center justify-center font-comic text-xs font-bold text-black">
-                            STEP {progress.current} OF {progress.total}
-                        </span>
+                    <div className="w-full space-y-1">
+                        <div className="w-full h-8 border-4 border-black bg-white relative shadow-[4px_4px_0px_rgba(0,0,0,0.5)] overflow-hidden">
+                            {/* Animated background stripes */}
+                            <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent animate-pulse" />
+
+                            {/* Progress fill with gradient */}
+                            <div
+                                className="h-full bg-gradient-to-r from-yellow-300 via-yellow-400 to-orange-400 border-r-2 border-black transition-all duration-500 ease-out relative"
+                                style={{ width: `${percentage}%` }}
+                            >
+                                {/* Shine effect */}
+                                <div className="absolute inset-0 bg-gradient-to-b from-white/30 via-transparent to-transparent" />
+                            </div>
+
+                            {/* Text overlay */}
+                            <div className="absolute inset-0 flex items-center justify-center gap-2">
+                                <span className="font-comic text-sm font-bold text-black drop-shadow-[1px_1px_0px_rgba(255,255,255,0.8)]">
+                                    {percentage}%
+                                </span>
+                                <span className="font-comic text-xs font-bold text-black/70 drop-shadow-[1px_1px_0px_rgba(255,255,255,0.8)]">
+                                    ({progress.current}/{progress.total})
+                                </span>
+                            </div>
+                        </div>
+
+                        {/* Elapsed time */}
+                        <div className="flex justify-between items-center text-xs font-comic">
+                            <span className="text-gray-600">⏱️ {Math.floor(elapsedTime / 60)}:{(elapsedTime % 60).toString().padStart(2, '0')}</span>
+                            <span className="text-gray-500 italic">AI is thinking...</span>
+                        </div>
                     </div>
                 )}
             </div>

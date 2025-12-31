@@ -87,6 +87,9 @@ export interface LoadingProgress {
     current: number;
     total: number;
     label: string;
+    substep?: string; // Optional detailed substep description
+    percentage?: number; // Calculated percentage (0-100)
+    startTime?: number; // Timestamp when progress started
 }
 
 // Reducer & Context Types
