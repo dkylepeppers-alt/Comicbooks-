@@ -1,3 +1,4 @@
+
 /**
  * @license
  * SPDX-License-Identifier: Apache-2.0
@@ -39,18 +40,6 @@ export const LANGUAGES = [
     { code: 'zh-CN', name: 'Chinese (China)' }
 ];
 
-export interface ComicFace {
-  id: string;
-  type: 'cover' | 'story' | 'back_cover';
-  imageUrl?: string;
-  narrative?: Beat;
-  choices: string[];
-  resolvedChoice?: string;
-  isLoading: boolean;
-  pageIndex?: number;
-  isDecisionPage?: boolean;
-}
-
 export interface Beat {
   caption?: string;
   dialogue?: string;
@@ -61,5 +50,53 @@ export interface Beat {
 
 export interface Persona {
   base64: string;
-  desc: string;
+  name: string;
+  description: string;
 }
+
+export interface ComicFace {
+  id: string;
+  type: 'cover' | 'story' | 'back_cover';
+  imageUrl?: string;
+  narrative?: Beat;
+  choices: string[];
+  resolvedChoice?: string;
+  isLoading: boolean;
+  pageIndex: number;
+  isDecisionPage?: boolean;
+}
+
+export interface StoryConfig {
+  genre: string;
+  tone: string;
+  language: string;
+  customPremise: string;
+  richMode: boolean;
+}
+
+// Reducer & Context Types
+export type EngineStatus = 'idle' | 'setup' | 'generating' | 'reading' | 'error';
+
+export interface ComicState {
+  status: EngineStatus;
+  comicFaces: ComicFace[];
+  currentSheetIndex: number;
+  hero: Persona | null;
+  friend: Persona | null;
+  config: StoryConfig;
+  error: string | null;
+}
+
+export type ComicAction =
+  | { type: 'SET_HERO'; payload: Persona | null }
+  | { type: 'UPDATE_HERO'; payload: Partial<Persona> }
+  | { type: 'SET_FRIEND'; payload: Persona | null }
+  | { type: 'UPDATE_FRIEND'; payload: Partial<Persona> }
+  | { type: 'UPDATE_CONFIG'; payload: Partial<StoryConfig> }
+  | { type: 'START_ADVENTURE' }
+  | { type: 'TRANSITION_COMPLETE' }
+  | { type: 'ADD_FACES'; payload: ComicFace[] }
+  | { type: 'UPDATE_FACE'; payload: { id: string; updates: Partial<ComicFace> } }
+  | { type: 'SET_SHEET_INDEX'; payload: number }
+  | { type: 'SET_ERROR'; payload: string }
+  | { type: 'RESET' };

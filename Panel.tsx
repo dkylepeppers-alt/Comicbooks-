@@ -1,3 +1,4 @@
+
 /**
  * @license
  * SPDX-License-Identifier: Apache-2.0
@@ -6,17 +7,18 @@
 import React from 'react';
 import { ComicFace, INITIAL_PAGES, GATE_PAGE } from './types';
 import { LoadingFX } from './LoadingFX';
+import { useBook } from './context/BookContext';
 
 interface PanelProps {
     face?: ComicFace;
-    allFaces: ComicFace[]; // Needed for cover "printing" status
-    onChoice: (pageIndex: number, choice: string) => void;
+    allFaces: ComicFace[];
     onOpenBook: () => void;
     onDownload: () => void;
-    onReset: () => void;
 }
 
-export const Panel: React.FC<PanelProps> = ({ face, allFaces, onChoice, onOpenBook, onDownload, onReset }) => {
+export const Panel: React.FC<PanelProps> = ({ face, allFaces, onOpenBook, onDownload }) => {
+    const { actions } = useBook();
+
     if (!face) return <div className="w-full h-full bg-gray-950" />;
     if (face.isLoading && !face.imageUrl) return <LoadingFX />;
     
@@ -32,7 +34,7 @@ export const Panel: React.FC<PanelProps> = ({ face, allFaces, onChoice, onOpenBo
                 <div className={`absolute bottom-0 inset-x-0 p-6 pb-12 flex flex-col gap-3 items-center justify-end transition-opacity duration-500 ${face.resolvedChoice ? 'opacity-0 pointer-events-none' : 'opacity-100'} bg-gradient-to-t from-black/90 via-black/50 to-transparent z-20`}>
                     <p className="text-white font-comic text-2xl uppercase tracking-widest animate-pulse">What drives you?</p>
                     {face.choices.map((choice, i) => (
-                        <button key={i} onClick={(e) => { e.stopPropagation(); if(face.pageIndex) onChoice(face.pageIndex, choice); }}
+                        <button key={i} onClick={(e) => { e.stopPropagation(); if(face.pageIndex) actions.handleChoice(face.pageIndex, choice); }}
                           className={`comic-btn w-full py-3 text-xl font-bold tracking-wider ${i===0?'bg-yellow-400 hover:bg-yellow-300':'bg-blue-500 text-white hover:bg-blue-400'}`}>
                             {choice}
                         </button>
@@ -55,7 +57,7 @@ export const Panel: React.FC<PanelProps> = ({ face, allFaces, onChoice, onOpenBo
             {face.type === 'back_cover' && (
                 <div className="absolute bottom-24 inset-x-0 flex flex-col items-center gap-4 z-20">
                     <button onClick={(e) => { e.stopPropagation(); onDownload(); }} className="comic-btn bg-blue-500 text-white px-8 py-3 text-xl font-bold hover:scale-105">DOWNLOAD ISSUE</button>
-                    <button onClick={(e) => { e.stopPropagation(); onReset(); }} className="comic-btn bg-green-500 text-white px-8 py-4 text-2xl font-bold hover:scale-105">CREATE NEW ISSUE</button>
+                    <button onClick={(e) => { e.stopPropagation(); actions.reset(); }} className="comic-btn bg-green-500 text-white px-8 py-4 text-2xl font-bold hover:scale-105">CREATE NEW ISSUE</button>
                 </div>
             )}
         </div>
