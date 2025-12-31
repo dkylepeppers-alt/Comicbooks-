@@ -12,6 +12,14 @@ export const GATE_PAGE = 2;
 export const BATCH_SIZE = 2; // Reduced for more granular control
 export const DECISION_PAGES = [5]; // Moved deeper since user controls flow now
 
+// Timeout configuration for AI operations (in milliseconds)
+export const TIMEOUT_CONFIG = {
+  PERSONA_GENERATION: 60000,    // 60 seconds for character image generation
+  BEAT_GENERATION: 45000,       // 45 seconds for narrative text generation
+  IMAGE_GENERATION: 90000,      // 90 seconds for comic panel image generation
+  DEFAULT: 30000,               // 30 seconds default timeout
+} as const;
+
 export const GENRES = ["Classic Horror", "Superhero Action", "Dark Sci-Fi", "High Fantasy", "Neon Noir Detective", "Wasteland Apocalypse", "Lighthearted Comedy", "Teen Drama / Slice of Life", "Custom"];
 export const TONES = [
     "ACTION-HEAVY (Short, punchy dialogue. Focus on kinetics.)",

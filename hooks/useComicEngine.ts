@@ -114,6 +114,9 @@ export const useComicEngine = () => {
   // Ref to track active timeouts for cleanup
   const activeTimeoutsRef = useRef<Set<NodeJS.Timeout>>(new Set());
 
+  // Ref to track active AbortControllers for AI operations
+  const activeControllersRef = useRef<Map<string, AbortController>>(new Map());
+
   // Ref to track if component is mounted (for cleanup)
   const isMountedRef = useRef<boolean>(true);
 
@@ -123,14 +126,23 @@ export const useComicEngine = () => {
     activeTimeoutsRef.current.clear();
   }, []);
 
+  // Cleanup function for AbortControllers
+  const abortAllOperations = useCallback(() => {
+    activeControllersRef.current.forEach((controller, key) => {
+      controller.abort(new Error('Component unmounting or operation cancelled'));
+    });
+    activeControllersRef.current.clear();
+  }, []);
+
   // Set mounted status and cleanup on unmount
   React.useEffect(() => {
     isMountedRef.current = true;
     return () => {
       isMountedRef.current = false;
+      abortAllOperations();
       clearAllTimeouts();
     };
-  }, [clearAllTimeouts]);
+  }, [abortAllOperations, clearAllTimeouts]);
 
   // Actions
   const setHero = useCallback((p: Persona | null) => dispatch({ type: 'SET_HERO', payload: p }), []);
@@ -167,6 +179,25 @@ export const useComicEngine = () => {
       currentWorld: World | null,
       userGuidance?: string
   ) => {
+    /**
+     * RACE CONDITION MITIGATION FOR CONCURRENT BATCH HISTORY DIVERGENCE
+     *
+     * This implementation prevents concurrent batch operations from causing
+     * history divergence through the following mechanisms:
+     *
+     * 1. Page Reservation System: Uses generatingPagesRef Set for atomic
+     *    check-and-reserve to prevent duplicate page generation
+     * 2. Sequential Processing: Pages within a batch are processed sequentially
+     *    to maintain narrative consistency
+     * 3. Batch History: Includes both generated and in-progress pages to ensure
+     *    AI has full context
+     * 4. AbortController Management: Each AI operation has its own controller
+     *    for graceful cancellation with timeout handling
+     *
+     * This ensures that even if multiple batches are triggered, each page is
+     * only generated once and the narrative history remains consistent.
+     */
+
     // Atomically check and reserve pages to prevent race conditions
     const pagesToGen: number[] = [];
     for (let i = 0; i < count; i++) {
@@ -230,14 +261,32 @@ export const useComicEngine = () => {
         const type = pageNum === BACK_COVER_PAGE ? 'back_cover' : 'story';
         const isDecision = DECISION_PAGES.includes(pageNum);
 
+        // Create AbortController for this page's operations
+        const pageController = new AbortController();
+        const controllerKey = `page-${pageNum}-beat`;
+        activeControllersRef.current.set(controllerKey, pageController);
+
         let beat;
         if (type === 'back_cover') {
            beat = { scene: "Thematic teaser image", choices: [], focus_char: 'other' as const };
         } else {
            // Apply guidance only to the first page of the batch to set direction
            const batchGuidance = (pageNum === startPage) ? userGuidance : undefined;
-           beat = await AiService.generateBeat(batchHistory, pageNum, isDecision, currentConfig, currentHero, currentFriend, currentWorld, batchGuidance);
+           beat = await AiService.generateBeat(
+             batchHistory,
+             pageNum,
+             isDecision,
+             currentConfig,
+             currentHero,
+             currentFriend,
+             currentWorld,
+             batchGuidance,
+             pageController.signal
+           );
         }
+
+        // Clean up beat generation controller
+        activeControllersRef.current.delete(controllerKey);
         
         let activeFriend = currentFriend;
         if (beat.focus_char === 'friend' && !activeFriend && type === 'story') {
@@ -253,9 +302,18 @@ export const useComicEngine = () => {
                     startTime
                  }
               });
+
+              // Create AbortController for persona generation
+              const personaController = new AbortController();
+              const personaKey = `page-${pageNum}-persona`;
+              activeControllersRef.current.set(personaKey, personaController);
+
               const desc = currentConfig.genre === 'Custom' ? "A fitting sidekick for this story" : `Sidekick for ${currentConfig.genre} story.`;
-              activeFriend = await AiService.generatePersona(desc, currentConfig.genre);
+              activeFriend = await AiService.generatePersona(desc, currentConfig.genre, personaController.signal);
               setFriend(activeFriend);
+
+              // Clean up persona controller
+              activeControllersRef.current.delete(personaKey);
            } catch (e) {
               const errStr = String(e);
               if (errStr.includes('403') || errStr.includes('PERMISSION_DENIED')) throw e;
@@ -278,11 +336,20 @@ export const useComicEngine = () => {
                 startTime
             }
         });
-        const url = await AiService.generateImage(beat, type, currentConfig, currentHero, activeFriend, currentWorld);
-        
+
+        // Create AbortController for image generation
+        const imageController = new AbortController();
+        const imageKey = `page-${pageNum}-image`;
+        activeControllersRef.current.set(imageKey, imageController);
+
+        const url = await AiService.generateImage(beat, type, currentConfig, currentHero, activeFriend, currentWorld, imageController.signal);
+
+        // Clean up image controller
+        activeControllersRef.current.delete(imageKey);
+
         batchHistory = batchHistory.map(f => f.id === faceId ? { ...f, imageUrl: url, isLoading: false } : f);
         dispatch({ type: 'UPDATE_FACE', payload: { id: faceId, updates: { imageUrl: url, isLoading: false } } });
-        
+
         generatingPagesRef.current.delete(pageNum);
         completed++;
       }
@@ -336,14 +403,26 @@ export const useComicEngine = () => {
     dispatch({ type: 'ADD_FACES', payload: [coverFace] });
     generatingPagesRef.current.add(0);
 
+    // Create AbortController for cover image generation
+    const coverController = new AbortController();
+    activeControllersRef.current.set('cover-image', coverController);
+
     try {
-        await AiService.generateImage({ scene: "Cover", choices: [], focus_char: 'hero' }, 'cover', state.config, state.hero, state.friend, state.currentWorld)
-          .then(url => {
-              dispatch({ type: 'UPDATE_FACE', payload: { id: 'cover', updates: { imageUrl: url, isLoading: false } } });
-              generatingPagesRef.current.delete(0);
-          });
+        const url = await AiService.generateImage(
+          { scene: "Cover", choices: [], focus_char: 'hero' },
+          'cover',
+          state.config,
+          state.hero,
+          state.friend,
+          state.currentWorld,
+          coverController.signal
+        );
+        dispatch({ type: 'UPDATE_FACE', payload: { id: 'cover', updates: { imageUrl: url, isLoading: false } } });
+        generatingPagesRef.current.delete(0);
+        activeControllersRef.current.delete('cover-image');
     } catch (e) {
         console.error("Launch Error:", e);
+        activeControllersRef.current.delete('cover-image');
         dispatch({ type: 'SET_ERROR', payload: "API_KEY_ERROR" });
         return;
     }

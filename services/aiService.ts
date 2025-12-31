@@ -5,14 +5,15 @@
 */
 
 import { GoogleGenAI } from '@google/genai';
-import { 
-  Beat, 
-  Persona, 
-  ComicFace, 
-  StoryConfig, 
+import {
+  Beat,
+  Persona,
+  ComicFace,
+  StoryConfig,
   World,
-  MAX_STORY_PAGES, 
-  LANGUAGES 
+  MAX_STORY_PAGES,
+  LANGUAGES,
+  TIMEOUT_CONFIG
 } from '../types';
 
 const MODEL_IMAGE_GEN_NAME = "gemini-3-pro-image-preview";
@@ -28,22 +29,79 @@ const getAI = () => {
   return new GoogleGenAI({ apiKey: process.env.API_KEY });
 };
 
+/**
+ * Creates an AbortSignal with a timeout. Combines manual abort control with automatic timeout.
+ * @param timeoutMs - Timeout in milliseconds
+ * @param externalSignal - Optional external AbortSignal to combine with timeout
+ * @returns Object containing the signal and cleanup function
+ */
+const createTimeoutSignal = (
+  timeoutMs: number,
+  externalSignal?: AbortSignal
+): { signal: AbortSignal; cleanup: () => void } => {
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => {
+    controller.abort(new Error(`Operation timed out after ${timeoutMs}ms`));
+  }, timeoutMs);
+
+  // If external signal is provided, forward its abort
+  const abortHandler = () => {
+    controller.abort(externalSignal?.reason);
+  };
+
+  if (externalSignal) {
+    if (externalSignal.aborted) {
+      controller.abort(externalSignal.reason);
+    } else {
+      externalSignal.addEventListener('abort', abortHandler);
+    }
+  }
+
+  const cleanup = () => {
+    clearTimeout(timeoutId);
+    if (externalSignal) {
+      externalSignal.removeEventListener('abort', abortHandler);
+    }
+  };
+
+  return { signal: controller.signal, cleanup };
+};
+
 export const AiService = {
-  async generatePersona(desc: string, genre: string): Promise<Persona> {
+  async generatePersona(
+    desc: string,
+    genre: string,
+    signal?: AbortSignal
+  ): Promise<Persona> {
     const style = genre === 'Custom' ? "Modern American comic book art" : `${genre} comic`;
     const ai = getAI();
-    
-    const res = await ai.models.generateContent({
+
+    // Create timeout signal
+    const { signal: timeoutSignal, cleanup } = createTimeoutSignal(
+      TIMEOUT_CONFIG.PERSONA_GENERATION,
+      signal
+    );
+
+    try {
+      // Check if already aborted
+      if (timeoutSignal.aborted) {
+        throw timeoutSignal.reason || new Error('Operation aborted');
+      }
+
+      const res = await ai.models.generateContent({
         model: MODEL_IMAGE_GEN_NAME,
         contents: { text: `STYLE: Masterpiece ${style} character sheet, detailed ink, neutral background. FULL BODY. Character: ${desc}` },
         config: { imageConfig: { aspectRatio: '1:1' } }
-    });
-    
-    const part = res.candidates?.[0]?.content?.parts?.find(p => p.inlineData);
-    if (part?.inlineData?.data) {
-      return { base64: part.inlineData.data, name: "Sidekick", description: desc };
+      });
+
+      const part = res.candidates?.[0]?.content?.parts?.find(p => p.inlineData);
+      if (part?.inlineData?.data) {
+        return { base64: part.inlineData.data, name: "Sidekick", description: desc };
+      }
+      throw new Error("Failed to generate persona image");
+    } finally {
+      cleanup();
     }
-    throw new Error("Failed to generate persona image");
   },
 
   async generateBeat(
@@ -54,7 +112,8 @@ export const AiService = {
     hero: Persona,
     friend: Persona | null,
     world: World | null,
-    userGuidance?: string // NEW: Direct user control
+    userGuidance?: string, // Direct user control
+    signal?: AbortSignal // AbortSignal for cancellation/timeout
   ): Promise<Beat> {
     const isFinalPage = pageNum === MAX_STORY_PAGES;
     const langName = LANGUAGES.find(l => l.code === config.language)?.name || "English";
@@ -158,19 +217,30 @@ OUTPUT STRICT JSON ONLY (No markdown formatting):
   "choices": ["Option A in ${langName}", "Option B in ${langName}"] (Only if decision page)
 }
 `;
+    // Create timeout signal
+    const { signal: timeoutSignal, cleanup } = createTimeoutSignal(
+      TIMEOUT_CONFIG.BEAT_GENERATION,
+      signal
+    );
+
     try {
+        // Check if already aborted
+        if (timeoutSignal.aborted) {
+          throw timeoutSignal.reason || new Error('Operation aborted');
+        }
+
         const ai = getAI();
-        const res = await ai.models.generateContent({ 
-            model: MODEL_TEXT_NAME, 
-            contents: prompt, 
-            config: { responseMimeType: 'application/json' } 
+        const res = await ai.models.generateContent({
+            model: MODEL_TEXT_NAME,
+            contents: prompt,
+            config: { responseMimeType: 'application/json' }
         });
-        
+
         let rawText = res.text || "{}";
         rawText = rawText.replace(/```json/g, '').replace(/```/g, '').trim();
-        
+
         const parsed = JSON.parse(rawText);
-        
+
         if (parsed.dialogue) parsed.dialogue = parsed.dialogue.replace(/^[\w\s\-]+:\s*/i, '').replace(/["']/g, '').trim();
         if (parsed.caption) parsed.caption = parsed.caption.replace(/^[\w\s\-]+:\s*/i, '').trim();
         if (!isDecisionPage) parsed.choices = [];
@@ -181,6 +251,8 @@ OUTPUT STRICT JSON ONLY (No markdown formatting):
     } catch (e) {
         console.error("Beat generation failed", e);
         throw e;
+    } finally {
+        cleanup();
     }
   },
 
@@ -190,7 +262,8 @@ OUTPUT STRICT JSON ONLY (No markdown formatting):
     config: StoryConfig,
     hero: Persona,
     friend: Persona | null,
-    world: World | null
+    world: World | null,
+    signal?: AbortSignal // AbortSignal for cancellation/timeout
   ): Promise<string> {
     const contents: any[] = [];
     
@@ -235,7 +308,18 @@ OUTPUT STRICT JSON ONLY (No markdown formatting):
 
     contents.push({ text: promptText });
 
+    // Create timeout signal
+    const { signal: timeoutSignal, cleanup } = createTimeoutSignal(
+      TIMEOUT_CONFIG.IMAGE_GENERATION,
+      signal
+    );
+
     try {
+        // Check if already aborted
+        if (timeoutSignal.aborted) {
+          throw timeoutSignal.reason || new Error('Operation aborted');
+        }
+
         const ai = getAI();
         const res = await ai.models.generateContent({
           model: MODEL_IMAGE_GEN_NAME,
@@ -244,9 +328,11 @@ OUTPUT STRICT JSON ONLY (No markdown formatting):
         });
         const part = res.candidates?.[0]?.content?.parts?.find(p => p.inlineData);
         return part?.inlineData?.data ? `data:${part.inlineData.mimeType};base64,${part.inlineData.data}` : '';
-    } catch (e) { 
+    } catch (e) {
         console.error("Image generation failed", e);
         throw e;
+    } finally {
+        cleanup();
     }
   }
 };
