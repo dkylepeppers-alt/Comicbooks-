@@ -12,9 +12,26 @@ View your app in AI Studio: https://ai.studio/apps/drive/1Glz62NFCxrxjvheM7ZIcoY
 
 **Prerequisites:**  Node.js
 
-
 1. Install dependencies:
    `npm install`
 2. Set the `GEMINI_API_KEY` in [.env.local](.env.local) to your Gemini API key
 3. Run the app:
    `npm run dev`
+
+## 📱 Run on Android with Termux
+
+You can run this app directly on your Android device using Termux!
+
+**Quick Install:**
+```bash
+bash install-termux.sh
+```
+
+**For detailed instructions, see:** [TERMUX_SETUP.md](TERMUX_SETUP.md)
+
+This includes:
+- ✅ Step-by-step installation guide
+- ✅ PWA installation instructions
+- ✅ Network access configuration
+- ✅ Troubleshooting tips
+- ✅ Auto-start on boot setup
