@@ -50,11 +50,11 @@ function reducer(state: ComicState, action: ComicAction): ComicState {
     case 'SET_HERO':
       return { ...state, hero: action.payload };
     case 'UPDATE_HERO':
-      return { ...state, hero: state.hero ? { ...state.hero, ...action.payload } : null };
+      return { ...state, hero: state.hero ? { ...state.hero, ...action.payload } : action.payload as Persona };
     case 'SET_FRIEND':
       return { ...state, friend: action.payload };
     case 'UPDATE_FRIEND':
-      return { ...state, friend: state.friend ? { ...state.friend, ...action.payload } : null };
+      return { ...state, friend: state.friend ? { ...state.friend, ...action.payload } : action.payload as Persona };
     case 'SET_WORLD':
       return { ...state, currentWorld: action.payload };
     case 'LOAD_WORLDS':
