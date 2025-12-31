@@ -299,12 +299,39 @@ A: Yes! As long as both devices are on the same WiFi network, use your phone's I
 A: Press `Ctrl+C` in the Termux terminal.
 
 **Q: How do I update the app?**
-A: Pull the latest changes and reinstall:
-```bash
-git pull
-npm install
-npm run dev
-```
+A: Follow these steps to update to the latest version:
+
+1. **Stop the server** (if it's currently running):
+   - Press `Ctrl+C` in the Termux terminal
+
+2. **Navigate to the app directory:**
+   ```bash
+   cd ~/storage/shared/Comicbooks-
+   ```
+   Or if you installed it elsewhere:
+   ```bash
+   cd Comicbooks-
+   ```
+
+3. **Pull the latest changes from GitHub:**
+   ```bash
+   git pull origin main
+   ```
+   This downloads the newest code
+
+4. **Update dependencies** (in case any packages changed):
+   ```bash
+   npm install
+   ```
+   This ensures all required packages are up-to-date
+
+5. **Start the server again:**
+   ```bash
+   npm run dev
+   ```
+   Your app is now running with the latest updates!
+
+**Note:** Your `.env.local` file with your API key will not be affected by the update.
 
 ## 🆘 Getting Help
 
