@@ -24,12 +24,12 @@ export const LoadingFX: React.FC = () => {
     useEffect(() => {
         const interval = setInterval(() => {
             const id = Date.now();
-            const text = LOADING_FX[Math.floor(Math.random() * LOADING_FX.length)];
+            const text = LOADING_FX[Math.floor(Math.random() * LOADING_FX.length)] ?? 'POW!';
             const x = `${20 + Math.random() * 60}%`;
             const y = `${20 + Math.random() * 60}%`;
             const rot = Math.random() * 60 - 30;
             const colors = ['text-yellow-400', 'text-red-500', 'text-blue-400', 'text-orange-500', 'text-purple-500'];
-            const color = colors[Math.floor(Math.random() * colors.length)];
+            const color = colors[Math.floor(Math.random() * colors.length)] ?? 'text-yellow-400';
             setParticles(prev => [...prev, { id, text, x, y, rot, color }].slice(-4));
         }, 600);
         return () => clearInterval(interval);

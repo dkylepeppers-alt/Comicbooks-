@@ -116,7 +116,7 @@ export const Setup: React.FC<SetupProps> = (props) => {
             window.removeEventListener('online', handleOnline);
             window.removeEventListener('offline', handleOffline);
         };
-    }, [props.show]);
+    }, [props.show, actions]);
 
     useEffect(() => {
         if (props.hero?.name && props.hero.name.length > 2 && props.hero.base64) {
@@ -125,6 +125,7 @@ export const Setup: React.FC<SetupProps> = (props) => {
             }, 1000);
             return () => clearTimeout(timer);
         }
+        return undefined;
     }, [props.hero]);
 
     useEffect(() => {
@@ -134,6 +135,7 @@ export const Setup: React.FC<SetupProps> = (props) => {
             }, 1000);
             return () => clearTimeout(timer);
         }
+        return undefined;
     }, [props.friend]);
 
     const sortedCharacters = useMemo(() => {

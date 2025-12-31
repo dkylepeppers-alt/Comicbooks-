@@ -74,8 +74,6 @@ export const Book: React.FC = () => {
 
     // 3. Check if we need the Director Sheet
     // It should appear after the last generated page, IF we aren't at the end
-    const lastSheetIndex = sheetsToRender.length - 1;
-    const lastSheet = sheetsToRender[lastSheetIndex];
     const isBookFinished = maxGeneratedPage >= TOTAL_PAGES;
 
     // Logic: If the last sheet has a back page that is rendered, we need a new sheet for Director
