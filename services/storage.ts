@@ -19,10 +19,11 @@ interface HeroesDB extends DBSchema {
 }
 
 const DB_NAME = 'infinite-heroes-db';
-const STORE_HEROES = 'heroes'; // Keeping IDB store name 'heroes' for backward compatibility
+const STORE_HEROES = 'heroes'; 
 const STORE_WORLDS = 'worlds';
 
 let dbPromise: Promise<IDBPDatabase<HeroesDB>>;
+let rootHandle: any | null = null; // FileSystemDirectoryHandle
 
 const initDB = () => {
   if (!dbPromise) {
@@ -40,43 +41,154 @@ const initDB = () => {
   return dbPromise;
 };
 
+// --- FILE SYSTEM HELPERS ---
+const verifyPermission = async (handle: any, readWrite: boolean) => {
+    const options: any = {};
+    if (readWrite) options.mode = 'readwrite';
+    if ((await handle.queryPermission(options)) === 'granted') return true;
+    if ((await handle.requestPermission(options)) === 'granted') return true;
+    return false;
+};
+
+const getSubDir = async (name: string) => {
+    if (!rootHandle) return null;
+    try {
+        return await rootHandle.getDirectoryHandle(name, { create: true });
+    } catch (e) {
+        console.error("FS Error getting subdir", e);
+        return null;
+    }
+};
+
+const writeToFile = async (dirHandle: any, filename: string, content: any) => {
+    try {
+        const fileHandle = await dirHandle.getFileHandle(filename, { create: true });
+        const writable = await fileHandle.createWritable();
+        await writable.write(JSON.stringify(content, null, 2));
+        await writable.close();
+    } catch (e) {
+        console.error("FS Write Error", e);
+    }
+};
+
+const readFiles = async <T>(dirHandle: any): Promise<T[]> => {
+    const results: T[] = [];
+    try {
+        for await (const entry of dirHandle.values()) {
+            if (entry.kind === 'file' && entry.name.endsWith('.json')) {
+                const file = await entry.getFile();
+                const text = await file.text();
+                try {
+                    const json = JSON.parse(text);
+                    results.push(json);
+                } catch (e) { console.warn("Invalid JSON", entry.name); }
+            }
+        }
+    } catch (e) { console.error("FS Read Error", e); }
+    return results;
+};
+
 export const StorageService = {
-  // --- CHARACTERS (Formerly Heroes) ---
-  // We use the term "Character" in the app logic, but store them in 'heroes' to keep old data.
-  // This serves as the "Common Stable" for both Heroes and Co-stars.
+  // --- CONNECTION ---
+  async connectLocalLibrary(): Promise<boolean> {
+    if (!('showDirectoryPicker' in window)) {
+        alert("Your browser does not support local file access. Using internal storage.");
+        return false;
+    }
+    try {
+        rootHandle = await (window as any).showDirectoryPicker();
+        // Ensure structure
+        await getSubDir('characters');
+        await getSubDir('worlds');
+        return true;
+    } catch (e) {
+        console.log("User cancelled folder picker or error", e);
+        return false;
+    }
+  },
+
+  isLocalConnected: () => !!rootHandle,
+
+  // --- CHARACTERS ---
   async saveCharacter(persona: Persona): Promise<void> {
     if (!persona.name) return;
-    const db = await initDB();
     const id = persona.name.toLowerCase().replace(/\s+/g, '-');
-    await db.put(STORE_HEROES, {
-      ...persona,
-      id,
-      timestamp: Date.now()
-    });
+    const data = { ...persona, id, timestamp: Date.now() };
+
+    // 1. Try File System
+    if (rootHandle) {
+        const dir = await getSubDir('characters');
+        if (dir) {
+            await writeToFile(dir, `${id}.json`, data);
+            return;
+        }
+    }
+
+    // 2. Fallback IDB
+    const db = await initDB();
+    await db.put(STORE_HEROES, data);
   },
 
   async getCharacters(): Promise<(Persona & { id: string })[]> {
-    const db = await initDB();
-    const all = await db.getAll(STORE_HEROES);
-    return all.sort((a, b) => b.timestamp - a.timestamp);
+    let items: any[] = [];
+    
+    // 1. Try File System
+    if (rootHandle) {
+        const dir = await getSubDir('characters');
+        if (dir) items = await readFiles(dir);
+    } 
+    
+    // 2. Merge/Fallback IDB
+    // Note: If FS is connected, we mainly show FS items, but let's merge for safety or just use IDB if FS fails
+    if (items.length === 0) {
+        const db = await initDB();
+        items = await db.getAll(STORE_HEROES);
+    }
+
+    return items.sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
   },
 
   // --- WORLDS ---
   async saveWorld(world: World): Promise<void> {
+    const data = { ...world, timestamp: Date.now() };
+
+    if (rootHandle) {
+        const dir = await getSubDir('worlds');
+        if (dir) {
+            await writeToFile(dir, `${world.id}.json`, data);
+            return;
+        }
+    }
+
     const db = await initDB();
-    await db.put(STORE_WORLDS, {
-      ...world,
-      timestamp: Date.now()
-    });
+    await db.put(STORE_WORLDS, data);
   },
 
   async getWorlds(): Promise<World[]> {
-    const db = await initDB();
-    const all = await db.getAll(STORE_WORLDS);
-    return all.sort((a, b) => b.timestamp - a.timestamp);
+    let items: any[] = [];
+
+    if (rootHandle) {
+        const dir = await getSubDir('worlds');
+        if (dir) items = await readFiles(dir);
+    }
+
+    if (items.length === 0) {
+        const db = await initDB();
+        items = await db.getAll(STORE_WORLDS);
+    }
+
+    return items.sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
   },
 
   async deleteWorld(id: string): Promise<void> {
+    if (rootHandle) {
+        const dir = await getSubDir('worlds');
+        if (dir) {
+            try {
+                await dir.removeEntry(`${id}.json`);
+            } catch (e) { console.warn("FS Delete error", e); }
+        }
+    }
     const db = await initDB();
     await db.delete(STORE_WORLDS, id);
   }

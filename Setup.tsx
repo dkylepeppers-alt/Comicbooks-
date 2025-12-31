@@ -25,7 +25,7 @@ interface SetupProps {
     onLaunch: () => void;
 }
 
-const Footer = ({ isInstallable, onInstall }: { isInstallable: boolean, onInstall: () => void }) => {
+const Footer = ({ isInstallable, onInstall, onConnectStorage }: { isInstallable: boolean, onInstall: () => void, onConnectStorage: () => void }) => {
   const [remixIndex, setRemixIndex] = useState(0);
   const remixes = [
     "Add sounds to panels",
@@ -51,6 +51,9 @@ const Footer = ({ isInstallable, onInstall }: { isInstallable: boolean, onInstal
             <span className="animate-pulse">{remixes[remixIndex]}</span>
         </div>
         <div className="flex items-center gap-4 mt-2 md:mt-0">
+            <button onClick={onConnectStorage} className="comic-btn bg-blue-600 text-white text-xs px-2 py-1 hover:bg-blue-500 uppercase">
+                📂 Connect Local Library
+            </button>
             {isInstallable && (
                 <button onClick={onInstall} className="comic-btn bg-white text-black text-xs px-2 py-1 hover:bg-gray-200 uppercase animate-bounce">
                     📲 Install App
@@ -132,6 +135,14 @@ export const Setup: React.FC<SetupProps> = (props) => {
         setShowWorldBuilder(false);
     };
 
+    const handleConnectStorage = async () => {
+        const connected = await StorageService.connectLocalLibrary();
+        if (connected) {
+            refreshLibrary();
+            actions.loadWorlds();
+        }
+    };
+
     return (
         <>
         {showWorldBuilder && (
@@ -148,6 +159,16 @@ export const Setup: React.FC<SetupProps> = (props) => {
                     <path d="M95.7,12.8 L110.2,48.5 L148.5,45.2 L125.6,74.3 L156.8,96.8 L119.4,105.5 L122.7,143.8 L92.5,118.6 L60.3,139.7 L72.1,103.2 L34.5,108.8 L59.9,79.9 L24.7,57.3 L62.5,54.4 L61.2,16.5 z" fill="#FFD700" stroke="black" strokeWidth="4"/>
                     <text x="100" y="95" textAnchor="middle" fontFamily="'Bangers', cursive" fontSize="70" fill="#DC2626" stroke="black" strokeWidth="2" transform="rotate(-5 100 75)">POW!</text>
                 </svg>
+                {state.loadingProgress && (
+                    <div className="absolute top-[80%] left-1/2 -translate-x-1/2 w-64 text-center">
+                        <p className="font-comic text-2xl text-white drop-shadow-[2px_2px_0_black] animate-pulse mb-1">
+                            {state.loadingProgress.label}
+                        </p>
+                        <div className="w-full h-4 border-2 border-black bg-white">
+                            <div className="h-full bg-yellow-400 transition-all duration-300" style={{width: `${(state.loadingProgress.current / state.loadingProgress.total) * 100}%`}}></div>
+                        </div>
+                    </div>
+                )}
             </div>
         )}
         
@@ -357,7 +378,7 @@ export const Setup: React.FC<SetupProps> = (props) => {
           </div>
         </div>
 
-        <Footer isInstallable={isInstallable} onInstall={promptInstall} />
+        <Footer isInstallable={isInstallable} onInstall={promptInstall} onConnectStorage={handleConnectStorage} />
         </>
     );
 }

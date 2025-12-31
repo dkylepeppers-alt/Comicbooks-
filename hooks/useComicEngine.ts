@@ -19,7 +19,8 @@ import {
   TOTAL_PAGES,
   BACK_COVER_PAGE,
   BATCH_SIZE,
-  DECISION_PAGES
+  DECISION_PAGES,
+  LoadingProgress
 } from '../types';
 import { AiService } from '../services/aiService';
 import { StorageService } from '../services/storage';
@@ -39,6 +40,7 @@ const initialState: ComicState = {
     customPremise: "",
     richMode: true,
   },
+  loadingProgress: null,
   error: null,
 };
 
@@ -65,7 +67,7 @@ function reducer(state: ComicState, action: ComicAction): ComicState {
     case 'START_ADVENTURE':
       return { ...state, status: 'generating', error: null };
     case 'TRANSITION_COMPLETE':
-      return { ...state, status: 'reading' };
+      return { ...state, status: 'reading', loadingProgress: null };
     case 'ADD_FACES': {
       const existingIds = new Set(state.comicFaces.map(f => f.id));
       const uniqueNew = action.payload.filter(f => !existingIds.has(f.id));
@@ -83,8 +85,10 @@ function reducer(state: ComicState, action: ComicAction): ComicState {
       };
     case 'SET_SHEET_INDEX':
       return { ...state, currentSheetIndex: action.payload };
+    case 'SET_LOADING_PROGRESS':
+      return { ...state, loadingProgress: action.payload };
     case 'SET_ERROR':
-      return { ...state, error: action.payload };
+      return { ...state, error: action.payload, loadingProgress: null };
     case 'RESET':
       return initialState;
     default:
@@ -148,10 +152,23 @@ export const useComicEngine = () => {
     dispatch({ type: 'ADD_FACES', payload: newFaces });
 
     let batchHistory = [...currentFaces, ...newFaces];
+    let completed = 0;
+    const total = pagesToGen.length;
+
+    // Dispatch initial progress
+    dispatch({ 
+        type: 'SET_LOADING_PROGRESS', 
+        payload: { current: 0, total, label: `Generating Page ${startPage}` } 
+    });
 
     try {
       // Process sequentially
       for (const pageNum of pagesToGen) {
+        dispatch({ 
+            type: 'SET_LOADING_PROGRESS', 
+            payload: { current: completed + 1, total, label: `Writing Page ${pageNum}...` } 
+        });
+
         const faceId = `page-${pageNum}`;
         const type = pageNum === BACK_COVER_PAGE ? 'back_cover' : 'story';
         const isDecision = DECISION_PAGES.includes(pageNum);
@@ -166,15 +183,16 @@ export const useComicEngine = () => {
         let activeFriend = currentFriend;
         if (beat.focus_char === 'friend' && !activeFriend && type === 'story') {
            try {
+              dispatch({ 
+                 type: 'SET_LOADING_PROGRESS', 
+                 payload: { current: completed + 1, total, label: `Casting Sidekick...` } 
+              });
               const desc = currentConfig.genre === 'Custom' ? "A fitting sidekick for this story" : `Sidekick for ${currentConfig.genre} story.`;
               activeFriend = await AiService.generatePersona(desc, currentConfig.genre);
               setFriend(activeFriend);
            } catch (e) {
-              // Rethrow permission errors so they aren't swallowed by fallback logic
               const errStr = String(e);
-              if (errStr.includes('403') || errStr.includes('PERMISSION_DENIED')) {
-                  throw e;
-              }
+              if (errStr.includes('403') || errStr.includes('PERMISSION_DENIED')) throw e;
               beat.focus_char = 'other';
            }
         }
@@ -183,17 +201,21 @@ export const useComicEngine = () => {
         dispatch({ type: 'UPDATE_FACE', payload: { id: faceId, updates: { narrative: beat, choices: beat.choices, isDecisionPage: isDecision } } });
 
         // Generate Image
+        dispatch({ 
+            type: 'SET_LOADING_PROGRESS', 
+            payload: { current: completed + 1, total, label: `Inking Panel ${pageNum}...` } 
+        });
         const url = await AiService.generateImage(beat, type, currentConfig, currentHero, activeFriend, currentWorld);
         
         batchHistory = batchHistory.map(f => f.id === faceId ? { ...f, imageUrl: url, isLoading: false } : f);
         dispatch({ type: 'UPDATE_FACE', payload: { id: faceId, updates: { imageUrl: url, isLoading: false } } });
         
         generatingPagesRef.current.delete(pageNum);
+        completed++;
       }
     } catch (e) {
       console.error("Batch Generation Error:", e);
       const msg = String(e);
-      // Catch specific permission errors (403/PERMISSION_DENIED) which indicate invalid/unpaid keys
       if (
           msg.includes('Requested entity was not found') || 
           msg.includes('API_KEY_INVALID') || 
@@ -204,6 +226,8 @@ export const useComicEngine = () => {
       }
     } finally {
       pagesToGen.forEach(p => generatingPagesRef.current.delete(p));
+      // Clear progress after short delay
+      setTimeout(() => dispatch({ type: 'SET_LOADING_PROGRESS', payload: null }), 1000);
     }
   }, [setFriend]);
 
@@ -211,6 +235,9 @@ export const useComicEngine = () => {
     if (!state.hero) return;
     dispatch({ type: 'START_ADVENTURE' });
     
+    // Dispatch Launch Progress
+    dispatch({ type: 'SET_LOADING_PROGRESS', payload: { current: 1, total: 3, label: "Painting Cover Art..." } });
+
     // Generate Cover
     const coverFace: ComicFace = { id: 'cover', type: 'cover', choices: [], isLoading: true, pageIndex: 0 };
     dispatch({ type: 'ADD_FACES', payload: [coverFace] });
@@ -224,14 +251,17 @@ export const useComicEngine = () => {
           });
     } catch (e) {
         console.error("Launch Error:", e);
-        // On critical launch error, default to API Key check as it is the most common cause (403s)
         dispatch({ type: 'SET_ERROR', payload: "API_KEY_ERROR" });
         return;
     }
 
+    dispatch({ type: 'SET_LOADING_PROGRESS', payload: { current: 2, total: 3, label: "Binding Pages..." } });
+
     setTimeout(() => {
         dispatch({ type: 'TRANSITION_COMPLETE' });
-        // Start first batch
+        
+        // Start first batch immediately
+        dispatch({ type: 'SET_LOADING_PROGRESS', payload: { current: 3, total: 3, label: "Starting Issue #1..." } });
         generateBatch(1, INITIAL_PAGES, [coverFace], state.hero!, state.friend, state.config, state.currentWorld);
         
         setTimeout(() => {

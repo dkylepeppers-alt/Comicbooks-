@@ -82,6 +82,12 @@ export interface StoryConfig {
   richMode: boolean;
 }
 
+export interface LoadingProgress {
+    current: number;
+    total: number;
+    label: string;
+}
+
 // Reducer & Context Types
 export type EngineStatus = 'idle' | 'setup' | 'generating' | 'reading' | 'error';
 
@@ -94,6 +100,7 @@ export interface ComicState {
   currentWorld: World | null;
   availableWorlds: World[];
   config: StoryConfig;
+  loadingProgress: LoadingProgress | null;
   error: string | null;
 }
 
@@ -112,5 +119,6 @@ export type ComicAction =
   | { type: 'ADD_FACES'; payload: ComicFace[] }
   | { type: 'UPDATE_FACE'; payload: { id: string; updates: Partial<ComicFace> } }
   | { type: 'SET_SHEET_INDEX'; payload: number }
+  | { type: 'SET_LOADING_PROGRESS'; payload: LoadingProgress | null }
   | { type: 'SET_ERROR'; payload: string }
   | { type: 'RESET' };

@@ -1,14 +1,21 @@
+
 /**
  * @license
  * SPDX-License-Identifier: Apache-2.0
 */
 
 import React, { useState, useEffect } from 'react';
+import { useBook } from './context/BookContext';
 
 const LOADING_FX = ["POW!", "BAM!", "ZAP!", "KRAK!", "SKREEE!", "WHOOSH!", "THWIP!", "BOOM!"];
 
 export const LoadingFX: React.FC = () => {
+    const { state } = useBook();
     const [particles, setParticles] = useState<{id: number, text: string, x: string, y: string, rot: number, color: string}[]>([]);
+    
+    // Progress Data from Engine
+    const progress = state.loadingProgress;
+
     useEffect(() => {
         const interval = setInterval(() => {
             const id = Date.now();
@@ -35,6 +42,7 @@ export const LoadingFX: React.FC = () => {
               }
             `}</style>
             <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-gray-100 to-white opacity-50" />
+            
             {particles.map(p => (
                 <div key={p.id} 
                      className={`absolute font-comic text-5xl md:text-7xl font-bold ${p.color} select-none whitespace-nowrap z-10`}
@@ -42,7 +50,24 @@ export const LoadingFX: React.FC = () => {
                     {p.text}
                 </div>
             ))}
-            <p className="absolute bottom-24 inset-x-0 text-center font-comic text-xl text-gray-400 animate-pulse z-0 tracking-widest">INKING PAGE...</p>
+            
+            <div className="absolute bottom-16 inset-x-6 z-20 flex flex-col items-center gap-2">
+                <p className="font-comic text-xl text-black bg-white/80 px-2 border-2 border-black animate-pulse tracking-widest">
+                    {progress ? progress.label.toUpperCase() : "INKING PAGE..."}
+                </p>
+                
+                {progress && (
+                    <div className="w-full h-6 border-4 border-black bg-white relative shadow-[4px_4px_0px_rgba(0,0,0,0.5)]">
+                        <div 
+                            className="h-full bg-yellow-400 border-r-2 border-black transition-all duration-300 ease-out"
+                            style={{ width: `${(progress.current / progress.total) * 100}%` }}
+                        />
+                        <span className="absolute inset-0 flex items-center justify-center font-comic text-xs font-bold text-black">
+                            STEP {progress.current} OF {progress.total}
+                        </span>
+                    </div>
+                )}
+            </div>
         </div>
     );
 };
