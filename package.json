@@ -6,6 +6,7 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
+    "build:termux": "vite build --config vite.config.termux.ts",
     "preview": "vite preview"
   },
   "dependencies": {
