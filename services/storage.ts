@@ -122,20 +122,29 @@ export const StorageService = {
   },
 
   async getCharacters(): Promise<(Persona & { id: string })[]> {
-    let items: any[] = [];
-    
+    let fsItems: any[] = [];
+    let idbItems: any[] = [];
+
     // 1. Try File System
     if (rootHandle) {
         const dir = await getSubDir('characters');
-        if (dir) items = await readFiles(dir);
-    } 
-    
-    // 2. Merge/Fallback IDB
-    // Note: If FS is connected, we mainly show FS items, but let's merge for safety or just use IDB if FS fails
-    if (items.length === 0) {
-        const db = await initDB();
-        items = await db.getAll(STORE_HEROES);
+        if (dir) fsItems = await readFiles(dir);
     }
+
+    // 2. Always read from IndexedDB to merge both sources
+    const db = await initDB();
+    idbItems = await db.getAll(STORE_HEROES);
+
+    // 3. Merge and deduplicate (File System takes precedence over IDB)
+    const mergedMap = new Map<string, any>();
+
+    // Add IDB items first
+    idbItems.forEach(item => mergedMap.set(item.id, item));
+
+    // File System items override IDB items (newer versions)
+    fsItems.forEach(item => mergedMap.set(item.id, item));
+
+    const items = Array.from(mergedMap.values());
 
     return items.sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
   },
@@ -157,17 +166,29 @@ export const StorageService = {
   },
 
   async getWorlds(): Promise<World[]> {
-    let items: any[] = [];
+    let fsItems: any[] = [];
+    let idbItems: any[] = [];
 
+    // 1. Try File System
     if (rootHandle) {
         const dir = await getSubDir('worlds');
-        if (dir) items = await readFiles(dir);
+        if (dir) fsItems = await readFiles(dir);
     }
 
-    if (items.length === 0) {
-        const db = await initDB();
-        items = await db.getAll(STORE_WORLDS);
-    }
+    // 2. Always read from IndexedDB to merge both sources
+    const db = await initDB();
+    idbItems = await db.getAll(STORE_WORLDS);
+
+    // 3. Merge and deduplicate (File System takes precedence over IDB)
+    const mergedMap = new Map<string, any>();
+
+    // Add IDB items first
+    idbItems.forEach(item => mergedMap.set(item.id, item));
+
+    // File System items override IDB items (newer versions)
+    fsItems.forEach(item => mergedMap.set(item.id, item));
+
+    const items = Array.from(mergedMap.values());
 
     return items.sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
   },
