@@ -10,6 +10,8 @@ export default defineConfig({
       devOptions: {
         enabled: true
       },
+      // Disable minification for Termux compatibility
+      minify: false,
       includeAssets: ['favicon.ico', 'apple-touch-icon.png', 'masked-icon.svg'],
       manifest: {
         id: '/',
