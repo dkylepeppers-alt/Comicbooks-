@@ -19,7 +19,7 @@ interface HeroesDB extends DBSchema {
 }
 
 const DB_NAME = 'infinite-heroes-db';
-const STORE_HEROES = 'heroes';
+const STORE_HEROES = 'heroes'; // Keeping IDB store name 'heroes' for backward compatibility
 const STORE_WORLDS = 'worlds';
 
 let dbPromise: Promise<IDBPDatabase<HeroesDB>>;
@@ -41,8 +41,10 @@ const initDB = () => {
 };
 
 export const StorageService = {
-  // --- HEROES ---
-  async saveHero(persona: Persona): Promise<void> {
+  // --- CHARACTERS (Formerly Heroes) ---
+  // We use the term "Character" in the app logic, but store them in 'heroes' to keep old data.
+  // This serves as the "Common Stable" for both Heroes and Co-stars.
+  async saveCharacter(persona: Persona): Promise<void> {
     if (!persona.name) return;
     const db = await initDB();
     const id = persona.name.toLowerCase().replace(/\s+/g, '-');
@@ -53,7 +55,7 @@ export const StorageService = {
     });
   },
 
-  async getHeroes(): Promise<(Persona & { id: string })[]> {
+  async getCharacters(): Promise<(Persona & { id: string })[]> {
     const db = await initDB();
     const all = await db.getAll(STORE_HEROES);
     return all.sort((a, b) => b.timestamp - a.timestamp);

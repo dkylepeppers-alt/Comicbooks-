@@ -65,31 +65,51 @@ const Footer = ({ isInstallable, onInstall }: { isInstallable: boolean, onInstal
 export const Setup: React.FC<SetupProps> = (props) => {
     const { isInstallable, promptInstall } = usePWA();
     const { state, actions } = useBook();
-    const [savedHeroes, setSavedHeroes] = useState<(Persona & {id:string})[]>([]);
+    // Unified "Common Stable" for all characters
+    const [savedCharacters, setSavedCharacters] = useState<(Persona & {id:string})[]>([]);
     const [showWorldBuilder, setShowWorldBuilder] = useState(false);
     
+    // Refresh library from storage
+    const refreshLibrary = () => {
+        StorageService.getCharacters().then(setSavedCharacters);
+    };
+
     useEffect(() => {
-        StorageService.getHeroes().then(setSavedHeroes);
+        refreshLibrary();
         actions.loadWorlds();
     }, [props.show]);
 
-    // Auto-save hero when modified
+    // Auto-save Hero when modified (and refresh stable)
     useEffect(() => {
         if (props.hero?.name && props.hero.name.length > 2 && props.hero.base64) {
             const timer = setTimeout(() => {
-                StorageService.saveHero(props.hero!);
+                StorageService.saveCharacter(props.hero!).then(refreshLibrary);
             }, 1000);
             return () => clearTimeout(timer);
         }
     }, [props.hero]);
 
+    // Auto-save Friend when modified (and refresh stable)
+    useEffect(() => {
+        if (props.friend?.name && props.friend.name.length > 2 && props.friend.base64) {
+            const timer = setTimeout(() => {
+                StorageService.saveCharacter(props.friend!).then(refreshLibrary);
+            }, 1000);
+            return () => clearTimeout(timer);
+        }
+    }, [props.friend]);
+
     if (!props.show && !props.isTransitioning) return null;
 
-    const handleLoadHero = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    const handleLoadCharacter = (e: React.ChangeEvent<HTMLSelectElement>, target: 'hero' | 'friend') => {
         const id = e.target.value;
-        const saved = savedHeroes.find(h => h.id === id);
+        const saved = savedCharacters.find(h => h.id === id);
         if (saved) {
-            props.onHeroUpdate({ ...saved });
+            if (target === 'hero') {
+                props.onHeroUpdate({ ...saved });
+            } else {
+                props.onFriendUpdate({ ...saved });
+            }
         }
     };
 
@@ -99,23 +119,23 @@ export const Setup: React.FC<SetupProps> = (props) => {
         setShowWorldBuilder(false);
     };
 
-    // Filter heroes if a world is selected
-    const sortedHeroes = useMemo(() => {
-        if (!state.currentWorld) return savedHeroes;
-        return [...savedHeroes].sort((a, b) => {
+    // Filter characters if a world is selected (to prioritize linked ones)
+    const sortedCharacters = useMemo(() => {
+        if (!state.currentWorld) return savedCharacters;
+        return [...savedCharacters].sort((a, b) => {
             const aLinked = state.currentWorld?.linkedPersonaIds.includes(a.id);
             const bLinked = state.currentWorld?.linkedPersonaIds.includes(b.id);
             if (aLinked && !bLinked) return -1;
             if (!aLinked && bLinked) return 1;
             return 0;
         });
-    }, [savedHeroes, state.currentWorld]);
+    }, [savedCharacters, state.currentWorld]);
 
     return (
         <>
         {showWorldBuilder && (
             <WorldBuilder 
-                savedHeroes={savedHeroes} 
+                savedHeroes={savedCharacters} 
                 onSave={handleSaveWorld} 
                 onCancel={() => setShowWorldBuilder(false)} 
             />
@@ -143,23 +163,22 @@ export const Setup: React.FC<SetupProps> = (props) => {
                     <div className="flex flex-col gap-2">
                         <div className="font-comic text-xl text-black border-b-4 border-black mb-1 flex justify-between items-end">
                             <span>1. THE CAST</span>
-                            {sortedHeroes.length > 0 && (
-                                <select onChange={handleLoadHero} className="text-xs font-sans border border-black p-1 bg-yellow-100 rounded w-24">
-                                    <option value="">📂 Load...</option>
-                                    {sortedHeroes.map(h => (
-                                        <option key={h.id} value={h.id}>
-                                            {state.currentWorld?.linkedPersonaIds.includes(h.id) ? '★ ' : ''}{h.name}
-                                        </option>
-                                    ))}
-                                </select>
-                            )}
                         </div>
                         
-                        {/* HERO UPLOAD */}
+                        {/* HERO BOX */}
                         <div className={`p-3 border-4 border-dashed ${props.hero ? 'border-green-500 bg-green-50' : 'border-blue-300 bg-blue-50'} transition-colors relative group`}>
                             <div className="flex justify-between items-center mb-2">
                                 <p className="font-comic text-lg uppercase font-bold text-blue-900">HERO (REQUIRED)</p>
-                                {props.hero && <span className="text-green-600 font-bold font-comic text-sm animate-pulse">✓ READY</span>}
+                                {savedCharacters.length > 0 && (
+                                    <select onChange={(e) => handleLoadCharacter(e, 'hero')} className="text-xs font-sans border border-black p-1 bg-yellow-100 rounded w-24">
+                                        <option value="">📂 {props.hero ? 'Swap' : 'Load'}...</option>
+                                        {sortedCharacters.map(h => (
+                                            <option key={h.id} value={h.id}>
+                                                {state.currentWorld?.linkedPersonaIds.includes(h.id) ? '★ ' : ''}{h.name}
+                                            </option>
+                                        ))}
+                                    </select>
+                                )}
                             </div>
                             
                             {props.hero ? (
@@ -176,13 +195,13 @@ export const Setup: React.FC<SetupProps> = (props) => {
                                             type="text" 
                                             placeholder="Hero Name" 
                                             className="w-full border-2 border-black p-1 font-comic text-base focus:outline-none"
-                                            value={props.hero.name}
+                                            value={props.hero.name || ''}
                                             onChange={(e) => props.onHeroUpdate({name: e.target.value})}
                                          />
                                          <textarea 
                                             placeholder="Description..." 
                                             className="w-full border-2 border-black p-1 font-comic text-xs h-12 resize-none focus:outline-none leading-tight"
-                                            value={props.hero.description}
+                                            value={props.hero.description || ''}
                                             onChange={(e) => props.onHeroUpdate({description: e.target.value})}
                                          />
                                      </div>
@@ -195,19 +214,44 @@ export const Setup: React.FC<SetupProps> = (props) => {
                             )}
                         </div>
 
-                        {/* CO-STAR UPLOAD */}
+                        {/* CO-STAR BOX (Refactored to mirror Hero Box) */}
                         <div className={`p-3 border-4 border-dashed ${props.friend ? 'border-green-500 bg-green-50' : 'border-purple-300 bg-purple-50'} transition-colors`}>
                             <div className="flex justify-between items-center mb-1">
                                 <p className="font-comic text-lg uppercase font-bold text-purple-900">CO-STAR</p>
+                                {savedCharacters.length > 0 && (
+                                    <select onChange={(e) => handleLoadCharacter(e, 'friend')} className="text-xs font-sans border border-black p-1 bg-yellow-100 rounded w-24">
+                                        <option value="">📂 {props.friend ? 'Swap' : 'Load'}...</option>
+                                        {sortedCharacters.map(h => (
+                                            <option key={h.id} value={h.id}>{h.name}</option>
+                                        ))}
+                                    </select>
+                                )}
                             </div>
 
                             {props.friend ? (
-                                <div className="flex gap-3 items-center mt-1">
-                                    <img src={`data:image/jpeg;base64,${props.friend.base64}`} alt="Co-Star Preview" className="w-14 h-14 object-cover border-2 border-black bg-white rotate-[2deg]" />
-                                    <label className="cursor-pointer comic-btn bg-yellow-400 text-black text-xs px-2 py-1 hover:bg-yellow-300 uppercase flex items-center justify-center">
-                                        REPLACE
-                                        <input type="file" accept="image/*" className="hidden" onChange={(e) => e.target.files?.[0] && props.onFriendUpload(e.target.files[0])} />
-                                    </label>
+                                <div className="flex gap-2 items-start mt-1">
+                                    <div className="flex flex-col gap-2">
+                                        <img src={`data:image/jpeg;base64,${props.friend.base64}`} alt="Co-Star Preview" className="w-16 h-16 object-cover border-2 border-black bg-white rotate-[2deg]" />
+                                        <label className="cursor-pointer comic-btn bg-yellow-400 text-black text-[10px] px-1 py-1 hover:bg-yellow-300 uppercase flex items-center justify-center">
+                                            REPLACE
+                                            <input type="file" accept="image/*" className="hidden" onChange={(e) => e.target.files?.[0] && props.onFriendUpload(e.target.files[0])} />
+                                        </label>
+                                    </div>
+                                    <div className="flex-1 flex flex-col gap-1">
+                                         <input 
+                                            type="text" 
+                                            placeholder="Co-Star Name" 
+                                            className="w-full border-2 border-black p-1 font-comic text-base focus:outline-none"
+                                            value={props.friend.name || ''}
+                                            onChange={(e) => props.onFriendUpdate({name: e.target.value})}
+                                         />
+                                         <textarea 
+                                            placeholder="Description..." 
+                                            className="w-full border-2 border-black p-1 font-comic text-xs h-12 resize-none focus:outline-none leading-tight"
+                                            value={props.friend.description || ''}
+                                            onChange={(e) => props.onFriendUpdate({description: e.target.value})}
+                                         />
+                                     </div>
                                 </div>
                             ) : (
                                 <label className="comic-btn bg-purple-500 text-white text-base px-2 py-2 block w-full hover:bg-purple-400 cursor-pointer text-center">
