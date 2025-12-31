@@ -54,6 +54,14 @@ export interface Persona {
   description: string;
 }
 
+export interface World {
+  id: string;
+  name: string;
+  description: string;
+  images: string[]; // Array of base64 strings (Max 3)
+  linkedPersonaIds: string[];
+}
+
 export interface ComicFace {
   id: string;
   type: 'cover' | 'story' | 'back_cover';
@@ -83,6 +91,8 @@ export interface ComicState {
   currentSheetIndex: number;
   hero: Persona | null;
   friend: Persona | null;
+  currentWorld: World | null;
+  availableWorlds: World[];
   config: StoryConfig;
   error: string | null;
 }
@@ -92,6 +102,10 @@ export type ComicAction =
   | { type: 'UPDATE_HERO'; payload: Partial<Persona> }
   | { type: 'SET_FRIEND'; payload: Persona | null }
   | { type: 'UPDATE_FRIEND'; payload: Partial<Persona> }
+  | { type: 'SET_WORLD'; payload: World | null }
+  | { type: 'LOAD_WORLDS'; payload: World[] }
+  | { type: 'ADD_WORLD'; payload: World }
+  | { type: 'DELETE_WORLD'; payload: string }
   | { type: 'UPDATE_CONFIG'; payload: Partial<StoryConfig> }
   | { type: 'START_ADVENTURE' }
   | { type: 'TRANSITION_COMPLETE' }

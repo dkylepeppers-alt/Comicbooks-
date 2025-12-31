@@ -6,7 +6,7 @@
 
 import React, { createContext, useContext, ReactNode } from 'react';
 import { useComicEngine } from '../hooks/useComicEngine';
-import { ComicState, Persona, StoryConfig } from '../types';
+import { ComicState, Persona, StoryConfig, World } from '../types';
 
 interface BookContextType {
   state: ComicState;
@@ -15,6 +15,10 @@ interface BookContextType {
     updateHero: (updates: Partial<Persona>) => void;
     setFriend: (p: Persona | null) => void;
     updateFriend: (updates: Partial<Persona>) => void;
+    setWorld: (w: World | null) => void;
+    loadWorlds: () => void;
+    saveWorld: (w: World) => void;
+    deleteWorld: (id: string) => void;
     updateConfig: (updates: Partial<StoryConfig>) => void;
     launchStory: () => void;
     handleChoice: (pageIndex: number, choice: string) => void;

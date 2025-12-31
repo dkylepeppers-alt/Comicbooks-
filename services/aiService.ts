@@ -10,6 +10,7 @@ import {
   Persona, 
   ComicFace, 
   StoryConfig, 
+  World,
   MAX_STORY_PAGES, 
   LANGUAGES 
 } from '../types';
@@ -51,7 +52,8 @@ export const AiService = {
     isDecisionPage: boolean,
     config: StoryConfig,
     hero: Persona,
-    friend: Persona | null
+    friend: Persona | null,
+    world: World | null
   ): Promise<Beat> {
     const isFinalPage = pageNum === MAX_STORY_PAGES;
     const langName = LANGUAGES.find(l => l.code === config.language)?.name || "English";
@@ -77,6 +79,12 @@ export const AiService = {
         } else {
              friendInstruction += " Ensure they are woven into the scene even if not the main focus.";
         }
+    }
+
+    // World Injection Logic
+    let worldInstruction = "Generic fitting environment.";
+    if (world) {
+        worldInstruction = `SETTING: "${world.name}". LORE: ${world.description}. THE SCENE MUST TAKE PLACE HERE.`;
     }
 
     // Hero Definition
@@ -129,6 +137,7 @@ ${coreDriver}
 CHARACTERS:
 - HERO: ${heroInstruction}
 - CO-STAR: ${friendInstruction}
+- WORLD/SETTING: ${worldInstruction}
 
 PREVIOUS PANELS (READ CAREFULLY):
 ${historyText.length > 0 ? historyText : "Start the adventure."}
@@ -146,7 +155,7 @@ OUTPUT STRICT JSON ONLY (No markdown formatting):
 {
   "caption": "Unique narrator text in ${langName}. (${capLimit}).",
   "dialogue": "Unique speech in ${langName}. (${diaLimit}). Optional.",
-  "scene": "Vivid visual description (ALWAYS IN ENGLISH for the artist model). MUST mention 'HERO' or 'CO-STAR' if they are present.",
+  "scene": "Vivid visual description (ALWAYS IN ENGLISH for the artist model). MUST mention 'HERO' or 'CO-STAR' if they are present. Describe the background based on the WORLD SETTING.",
   "focus_char": "hero" OR "friend" OR "other",
   "choices": ["Option A in ${langName}", "Option B in ${langName}"] (Only if decision page)
 }
@@ -184,16 +193,27 @@ OUTPUT STRICT JSON ONLY (No markdown formatting):
     type: ComicFace['type'],
     config: StoryConfig,
     hero: Persona,
-    friend: Persona | null
+    friend: Persona | null,
+    world: World | null
   ): Promise<string> {
-    const contents = [];
+    const contents: any[] = [];
+    
+    // 1. Hero Reference
     if (hero?.base64) {
-        contents.push({ text: "REFERENCE 1 [HERO]:" });
+        contents.push({ text: "REFERENCE [HERO]:" });
         contents.push({ inlineData: { mimeType: 'image/jpeg', data: hero.base64 } });
     }
+    // 2. Co-Star Reference
     if (friend?.base64) {
-        contents.push({ text: "REFERENCE 2 [CO-STAR]:" });
+        contents.push({ text: "REFERENCE [CO-STAR]:" });
         contents.push({ inlineData: { mimeType: 'image/jpeg', data: friend.base64 } });
+    }
+    // 3. World References (Max 3)
+    if (world?.images && world.images.length > 0) {
+        world.images.forEach((img, i) => {
+            contents.push({ text: `REFERENCE [WORLD ENVIRONMENT ${i+1}]:` });
+            contents.push({ inlineData: { mimeType: 'image/jpeg', data: img } });
+        });
     }
 
     const styleEra = config.genre === 'Custom' ? "Modern American" : config.genre;
@@ -201,12 +221,18 @@ OUTPUT STRICT JSON ONLY (No markdown formatting):
     
     if (type === 'cover') {
         const langName = LANGUAGES.find(l => l.code === config.language)?.name || "English";
-        promptText += `TYPE: Comic Book Cover. TITLE: "INFINITE HEROES" (OR LOCALIZED TRANSLATION IN ${langName.toUpperCase()}). Main visual: Dynamic action shot of [HERO] (Use REFERENCE 1).`;
+        promptText += `TYPE: Comic Book Cover. TITLE: "INFINITE HEROES" (OR LOCALIZED TRANSLATION IN ${langName.toUpperCase()}). Main visual: Dynamic action shot of [HERO] (Use REFERENCE [HERO]).`;
+        if (world) {
+            promptText += ` BACKGROUND: Must match REFERENCE [WORLD ENVIRONMENT] strictly. Setting: ${world.name}.`;
+        }
     } else if (type === 'back_cover') {
         promptText += `TYPE: Comic Back Cover. FULL PAGE VERTICAL ART. Dramatic teaser. Text: "NEXT ISSUE SOON".`;
     } else {
         promptText += `TYPE: Vertical comic panel. SCENE: ${beat.scene}. `;
-        promptText += `INSTRUCTIONS: Maintain strict character likeness. If scene mentions 'HERO', you MUST use REFERENCE 1. If scene mentions 'CO-STAR' or 'SIDEKICK', you MUST use REFERENCE 2.`;
+        promptText += `INSTRUCTIONS: Maintain strict character likeness. If scene mentions 'HERO', you MUST use REFERENCE [HERO]. If scene mentions 'CO-STAR' or 'SIDEKICK', you MUST use REFERENCE [CO-STAR].`;
+        if (world) {
+            promptText += ` BACKGROUND: Must match REFERENCE [WORLD ENVIRONMENT] aesthetic. Setting: ${world.name}.`;
+        }
         if (beat.caption) promptText += ` INCLUDE CAPTION BOX: "${beat.caption}"`;
         if (beat.dialogue) promptText += ` INCLUDE SPEECH BUBBLE: "${beat.dialogue}"`;
     }

@@ -4,10 +4,12 @@
  * SPDX-License-Identifier: Apache-2.0
 */
 
-import React, { useState, useEffect } from 'react';
-import { GENRES, LANGUAGES, Persona, StoryConfig } from './types';
+import React, { useState, useEffect, useMemo } from 'react';
+import { GENRES, LANGUAGES, Persona, StoryConfig, World } from './types';
 import { usePWA } from './hooks/usePWA';
 import { StorageService } from './services/storage';
+import { useBook } from './context/BookContext';
+import { WorldBuilder } from './components/WorldBuilder';
 
 interface SetupProps {
     show: boolean;
@@ -62,11 +64,14 @@ const Footer = ({ isInstallable, onInstall }: { isInstallable: boolean, onInstal
 
 export const Setup: React.FC<SetupProps> = (props) => {
     const { isInstallable, promptInstall } = usePWA();
+    const { state, actions } = useBook();
     const [savedHeroes, setSavedHeroes] = useState<(Persona & {id:string})[]>([]);
+    const [showWorldBuilder, setShowWorldBuilder] = useState(false);
     
     useEffect(() => {
         StorageService.getHeroes().then(setSavedHeroes);
-    }, [props.show]); // Refresh list when setup appears
+        actions.loadWorlds();
+    }, [props.show]);
 
     // Auto-save hero when modified
     useEffect(() => {
@@ -88,8 +93,34 @@ export const Setup: React.FC<SetupProps> = (props) => {
         }
     };
 
+    const handleSaveWorld = (world: World) => {
+        actions.saveWorld(world);
+        actions.setWorld(world);
+        setShowWorldBuilder(false);
+    };
+
+    // Filter heroes if a world is selected
+    const sortedHeroes = useMemo(() => {
+        if (!state.currentWorld) return savedHeroes;
+        return [...savedHeroes].sort((a, b) => {
+            const aLinked = state.currentWorld?.linkedPersonaIds.includes(a.id);
+            const bLinked = state.currentWorld?.linkedPersonaIds.includes(b.id);
+            if (aLinked && !bLinked) return -1;
+            if (!aLinked && bLinked) return 1;
+            return 0;
+        });
+    }, [savedHeroes, state.currentWorld]);
+
     return (
         <>
+        {showWorldBuilder && (
+            <WorldBuilder 
+                savedHeroes={savedHeroes} 
+                onSave={handleSaveWorld} 
+                onCancel={() => setShowWorldBuilder(false)} 
+            />
+        )}
+
         {props.isTransitioning && (
             <div className="fixed top-1/2 left-1/2 z-[210] pointer-events-none animate-pow-enter">
                 <svg viewBox="0 0 200 150" className="w-[500px] h-[400px] drop-shadow-[0_10px_0_rgba(0,0,0,0.5)]">
@@ -101,21 +132,25 @@ export const Setup: React.FC<SetupProps> = (props) => {
         
         <div className={`fixed inset-0 z-[200] overflow-y-auto transition-all duration-1000 ${props.isTransitioning ? 'bg-transparent backdrop-blur-none pointer-events-none animate-knockout-exit' : 'bg-black/85 backdrop-blur-sm'}`}>
           <div className="min-h-full flex items-center justify-center p-4 pb-32 md:pb-24">
-            <div className="max-w-[900px] w-full bg-white p-4 md:p-5 rotate-1 border-[6px] border-black shadow-[12px_12px_0px_rgba(0,0,0,0.6)] text-center relative">
+            <div className="max-w-[1100px] w-full bg-white p-4 md:p-5 rotate-1 border-[6px] border-black shadow-[12px_12px_0px_rgba(0,0,0,0.6)] text-center relative">
                 
                 <h1 className="font-comic text-5xl text-red-600 leading-none mb-1 tracking-wide inline-block mr-3" style={{textShadow: '2px 2px 0px black'}}>INFINITE</h1>
                 <h1 className="font-comic text-5xl text-yellow-400 leading-none mb-4 tracking-wide inline-block" style={{textShadow: '2px 2px 0px black'}}>HEROES</h1>
                 
-                <div className="flex flex-col md:flex-row gap-4 mb-4 text-left">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4 text-left">
                     
-                    {/* Left Column: Cast */}
-                    <div className="flex-1 flex flex-col gap-2">
+                    {/* COLUMN 1: THE CAST */}
+                    <div className="flex flex-col gap-2">
                         <div className="font-comic text-xl text-black border-b-4 border-black mb-1 flex justify-between items-end">
                             <span>1. THE CAST</span>
-                            {savedHeroes.length > 0 && (
-                                <select onChange={handleLoadHero} className="text-xs font-sans border border-black p-1 bg-yellow-100 rounded">
-                                    <option value="">📂 Load Saved...</option>
-                                    {savedHeroes.map(h => <option key={h.id} value={h.id}>{h.name}</option>)}
+                            {sortedHeroes.length > 0 && (
+                                <select onChange={handleLoadHero} className="text-xs font-sans border border-black p-1 bg-yellow-100 rounded w-24">
+                                    <option value="">📂 Load...</option>
+                                    {sortedHeroes.map(h => (
+                                        <option key={h.id} value={h.id}>
+                                            {state.currentWorld?.linkedPersonaIds.includes(h.id) ? '★ ' : ''}{h.name}
+                                        </option>
+                                    ))}
                                 </select>
                             )}
                         </div>
@@ -128,25 +163,25 @@ export const Setup: React.FC<SetupProps> = (props) => {
                             </div>
                             
                             {props.hero ? (
-                                <div className="flex gap-3 items-start mt-1">
+                                <div className="flex gap-2 items-start mt-1">
                                      <div className="flex flex-col gap-2">
-                                        <img src={`data:image/jpeg;base64,${props.hero.base64}`} alt="Hero Preview" className="w-24 h-24 object-cover border-2 border-black shadow-[2px_2px_0px_rgba(0,0,0,0.2)] bg-white rotate-[-2deg]" />
-                                        <label className="cursor-pointer comic-btn bg-yellow-400 text-black text-xs px-2 py-1 hover:bg-yellow-300 transition-transform active:scale-95 uppercase flex items-center justify-center">
+                                        <img src={`data:image/jpeg;base64,${props.hero.base64}`} alt="Hero Preview" className="w-16 h-16 object-cover border-2 border-black bg-white rotate-[-2deg]" />
+                                        <label className="cursor-pointer comic-btn bg-yellow-400 text-black text-[10px] px-1 py-1 hover:bg-yellow-300 uppercase flex items-center justify-center">
                                             REPLACE
                                             <input type="file" accept="image/*" className="hidden" onChange={(e) => e.target.files?.[0] && props.onHeroUpload(e.target.files[0])} />
                                         </label>
                                      </div>
-                                     <div className="flex-1 flex flex-col gap-2">
+                                     <div className="flex-1 flex flex-col gap-1">
                                          <input 
                                             type="text" 
                                             placeholder="Hero Name" 
-                                            className="w-full border-2 border-black p-1 font-comic text-lg shadow-[2px_2px_0px_rgba(0,0,0,0.1)] focus:outline-none"
+                                            className="w-full border-2 border-black p-1 font-comic text-base focus:outline-none"
                                             value={props.hero.name}
                                             onChange={(e) => props.onHeroUpdate({name: e.target.value})}
                                          />
                                          <textarea 
-                                            placeholder="Character Profile (e.g. Brave, scared of spiders...)" 
-                                            className="w-full border-2 border-black p-1 font-comic text-sm h-16 resize-none shadow-[2px_2px_0px_rgba(0,0,0,0.1)] focus:outline-none leading-tight"
+                                            placeholder="Description..." 
+                                            className="w-full border-2 border-black p-1 font-comic text-xs h-12 resize-none focus:outline-none leading-tight"
                                             value={props.hero.description}
                                             onChange={(e) => props.onHeroUpdate({description: e.target.value})}
                                          />
@@ -163,40 +198,86 @@ export const Setup: React.FC<SetupProps> = (props) => {
                         {/* CO-STAR UPLOAD */}
                         <div className={`p-3 border-4 border-dashed ${props.friend ? 'border-green-500 bg-green-50' : 'border-purple-300 bg-purple-50'} transition-colors`}>
                             <div className="flex justify-between items-center mb-1">
-                                <p className="font-comic text-lg uppercase font-bold text-purple-900">CO-STAR (OPTIONAL)</p>
-                                {props.friend && <span className="text-green-600 font-bold font-comic text-sm animate-pulse">✓ READY</span>}
+                                <p className="font-comic text-lg uppercase font-bold text-purple-900">CO-STAR</p>
                             </div>
 
                             {props.friend ? (
                                 <div className="flex gap-3 items-center mt-1">
-                                    <img src={`data:image/jpeg;base64,${props.friend.base64}`} alt="Co-Star Preview" className="w-20 h-20 object-cover border-2 border-black shadow-[2px_2px_0px_rgba(0,0,0,0.2)] bg-white rotate-[2deg]" />
-                                    <label className="cursor-pointer comic-btn bg-yellow-400 text-black text-sm px-3 py-1 hover:bg-yellow-300 transition-transform active:scale-95 uppercase flex items-center justify-center">
+                                    <img src={`data:image/jpeg;base64,${props.friend.base64}`} alt="Co-Star Preview" className="w-14 h-14 object-cover border-2 border-black bg-white rotate-[2deg]" />
+                                    <label className="cursor-pointer comic-btn bg-yellow-400 text-black text-xs px-2 py-1 hover:bg-yellow-300 uppercase flex items-center justify-center">
                                         REPLACE
                                         <input type="file" accept="image/*" className="hidden" onChange={(e) => e.target.files?.[0] && props.onFriendUpload(e.target.files[0])} />
                                     </label>
                                 </div>
                             ) : (
-                                <label className="comic-btn bg-purple-500 text-white text-lg px-3 py-3 block w-full hover:bg-purple-400 cursor-pointer text-center">
+                                <label className="comic-btn bg-purple-500 text-white text-base px-2 py-2 block w-full hover:bg-purple-400 cursor-pointer text-center">
                                     UPLOAD CO-STAR 
                                     <input type="file" accept="image/*" className="hidden" onChange={(e) => e.target.files?.[0] && props.onFriendUpload(e.target.files[0])} />
                                 </label>
                             )}
                         </div>
-                        
-                        <p className="text-[10px] text-gray-500 leading-tight mt-1 px-1">
-                            The Prohibited Use Policy applies. Do not generate content that infringes on others' privacy rights.
-                        </p>
                     </div>
 
-                    {/* Right Column: Settings */}
-                    <div className="flex-1 flex flex-col gap-2">
-                        <div className="font-comic text-xl text-black border-b-4 border-black mb-1">2. THE STORY</div>
+                    {/* COLUMN 2: THE WORLD */}
+                    <div className="flex flex-col gap-2">
+                        <div className="font-comic text-xl text-black border-b-4 border-black mb-1">2. THE WORLD</div>
+                        
+                        <div className="bg-gray-100 p-3 border-4 border-black h-full flex flex-col relative overflow-hidden">
+                             {/* World Bg Pattern */}
+                             <div className="absolute inset-0 opacity-5 pointer-events-none" style={{backgroundImage: 'radial-gradient(circle, #000 1px, transparent 1px)', backgroundSize: '10px 10px'}}></div>
+
+                             <div className="relative z-10 flex flex-col gap-3 h-full">
+                                <div className="flex justify-between items-center">
+                                    <label className="font-comic text-base font-bold text-gray-800">SELECT WORLD</label>
+                                    <button onClick={() => setShowWorldBuilder(true)} className="text-xs bg-black text-white px-2 py-1 font-bold uppercase hover:bg-gray-800">+ NEW</button>
+                                </div>
+
+                                <select 
+                                    value={state.currentWorld?.id || ""} 
+                                    onChange={(e) => {
+                                        const w = state.availableWorlds.find(w => w.id === e.target.value) || null;
+                                        actions.setWorld(w);
+                                    }}
+                                    className="w-full font-comic text-lg p-2 border-2 border-black bg-white shadow-[3px_3px_0px_rgba(0,0,0,0.1)] focus:outline-none"
+                                >
+                                    <option value="">(No World Selected)</option>
+                                    {state.availableWorlds.map(w => <option key={w.id} value={w.id}>{w.name}</option>)}
+                                </select>
+
+                                {state.currentWorld ? (
+                                    <div className="flex-1 flex flex-col gap-2 animate-in fade-in slide-in-from-bottom-2">
+                                        <div className="bg-white border-2 border-black p-2 flex-1 relative">
+                                            <p className="font-comic text-xl text-blue-600 border-b-2 border-gray-200 mb-1">{state.currentWorld.name}</p>
+                                            <p className="text-xs text-gray-600 line-clamp-4 leading-tight font-sans">{state.currentWorld.description}</p>
+                                            
+                                            {state.currentWorld.images.length > 0 && (
+                                                <div className="flex gap-1 mt-2 absolute bottom-2 right-2">
+                                                    {state.currentWorld.images.map((img, i) => (
+                                                        <img key={i} src={`data:image/jpeg;base64,${img}`} className="w-8 h-8 object-cover border border-black rounded-full" alt="tiny ref" />
+                                                    ))}
+                                                </div>
+                                            )}
+                                        </div>
+                                        <button onClick={() => actions.deleteWorld(state.currentWorld!.id)} className="text-[10px] text-red-500 underline self-end hover:text-red-700">Delete World</button>
+                                    </div>
+                                ) : (
+                                    <div className="flex-1 border-2 border-dashed border-gray-400 flex items-center justify-center text-center p-4">
+                                        <p className="text-gray-400 font-comic text-xl">Select or Create a World to ground your story.</p>
+                                    </div>
+                                )}
+                             </div>
+                        </div>
+                    </div>
+
+                    {/* COLUMN 3: THE STORY */}
+                    <div className="flex flex-col gap-2">
+                        <div className="font-comic text-xl text-black border-b-4 border-black mb-1">3. THE STORY</div>
                         
                         <div className="bg-yellow-50 p-3 border-4 border-black h-full flex flex-col justify-between">
                             <div>
                                 <div className="mb-2">
                                     <p className="font-comic text-base mb-1 font-bold text-gray-800">GENRE</p>
-                                    <select value={props.config.genre} onChange={(e) => props.onConfigChange({ genre: e.target.value })} className="w-full font-comic text-lg p-1 border-2 border-black uppercase bg-white text-black cursor-pointer shadow-[3px_3px_0px_rgba(0,0,0,0.2)] focus:outline-none focus:translate-x-[1px] focus:translate-y-[1px] focus:shadow-none transition-all">
+                                    <select value={props.config.genre} onChange={(e) => props.onConfigChange({ genre: e.target.value })} className="w-full font-comic text-lg p-1 border-2 border-black uppercase bg-white text-black cursor-pointer shadow-[3px_3px_0px_rgba(0,0,0,0.2)] focus:outline-none transition-all">
                                         {GENRES.map(g => <option key={g} value={g} className="text-black">{g}</option>)}
                                     </select>
                                 </div>
