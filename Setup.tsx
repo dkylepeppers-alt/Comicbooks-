@@ -99,6 +99,19 @@ export const Setup: React.FC<SetupProps> = (props) => {
         }
     }, [props.friend]);
 
+    // Filter characters if a world is selected (to prioritize linked ones)
+    // MOVED UP to prevent React Error #300 (fewer hooks rendered)
+    const sortedCharacters = useMemo(() => {
+        if (!state.currentWorld) return savedCharacters;
+        return [...savedCharacters].sort((a, b) => {
+            const aLinked = state.currentWorld?.linkedPersonaIds.includes(a.id);
+            const bLinked = state.currentWorld?.linkedPersonaIds.includes(b.id);
+            if (aLinked && !bLinked) return -1;
+            if (!aLinked && bLinked) return 1;
+            return 0;
+        });
+    }, [savedCharacters, state.currentWorld]);
+
     if (!props.show && !props.isTransitioning) return null;
 
     const handleLoadCharacter = (e: React.ChangeEvent<HTMLSelectElement>, target: 'hero' | 'friend') => {
@@ -118,18 +131,6 @@ export const Setup: React.FC<SetupProps> = (props) => {
         actions.setWorld(world);
         setShowWorldBuilder(false);
     };
-
-    // Filter characters if a world is selected (to prioritize linked ones)
-    const sortedCharacters = useMemo(() => {
-        if (!state.currentWorld) return savedCharacters;
-        return [...savedCharacters].sort((a, b) => {
-            const aLinked = state.currentWorld?.linkedPersonaIds.includes(a.id);
-            const bLinked = state.currentWorld?.linkedPersonaIds.includes(b.id);
-            if (aLinked && !bLinked) return -1;
-            if (!aLinked && bLinked) return 1;
-            return 0;
-        });
-    }, [savedCharacters, state.currentWorld]);
 
     return (
         <>
