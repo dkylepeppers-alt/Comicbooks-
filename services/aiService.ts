@@ -14,11 +14,13 @@ import {
   LANGUAGES 
 } from '../types';
 
-const MODEL_V3 = "gemini-3-pro-image-preview";
-const MODEL_IMAGE_GEN_NAME = MODEL_V3;
-const MODEL_TEXT_NAME = MODEL_V3;
+const MODEL_IMAGE_GEN_NAME = "gemini-3-pro-image-preview";
+const MODEL_TEXT_NAME = "gemini-3-flash-preview";
 
 const getAI = () => {
+  if (!navigator.onLine) {
+    throw new Error("OFFLINE: Please check your internet connection.");
+  }
   if (!process.env.API_KEY) {
     throw new Error("API_KEY_INVALID");
   }

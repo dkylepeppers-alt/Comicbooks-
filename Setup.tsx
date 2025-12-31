@@ -6,6 +6,8 @@
 
 import React, { useState, useEffect } from 'react';
 import { GENRES, LANGUAGES, Persona, StoryConfig } from './types';
+import { usePWA } from './hooks/usePWA';
+import { StorageService } from './services/storage';
 
 interface SetupProps {
     show: boolean;
@@ -21,7 +23,7 @@ interface SetupProps {
     onLaunch: () => void;
 }
 
-const Footer = () => {
+const Footer = ({ isInstallable, onInstall }: { isInstallable: boolean, onInstall: () => void }) => {
   const [remixIndex, setRemixIndex] = useState(0);
   const remixes = [
     "Add sounds to panels",
@@ -47,6 +49,11 @@ const Footer = () => {
             <span className="animate-pulse">{remixes[remixIndex]}</span>
         </div>
         <div className="flex items-center gap-4 mt-2 md:mt-0">
+            {isInstallable && (
+                <button onClick={onInstall} className="comic-btn bg-white text-black text-xs px-2 py-1 hover:bg-gray-200 uppercase animate-bounce">
+                    📲 Install App
+                </button>
+            )}
             <span className="text-gray-500 text-sm hidden md:inline">Build with Gemini</span>
         </div>
     </div>
@@ -54,7 +61,32 @@ const Footer = () => {
 };
 
 export const Setup: React.FC<SetupProps> = (props) => {
+    const { isInstallable, promptInstall } = usePWA();
+    const [savedHeroes, setSavedHeroes] = useState<(Persona & {id:string})[]>([]);
+    
+    useEffect(() => {
+        StorageService.getHeroes().then(setSavedHeroes);
+    }, [props.show]); // Refresh list when setup appears
+
+    // Auto-save hero when modified
+    useEffect(() => {
+        if (props.hero?.name && props.hero.name.length > 2 && props.hero.base64) {
+            const timer = setTimeout(() => {
+                StorageService.saveHero(props.hero!);
+            }, 1000);
+            return () => clearTimeout(timer);
+        }
+    }, [props.hero]);
+
     if (!props.show && !props.isTransitioning) return null;
+
+    const handleLoadHero = (e: React.ChangeEvent<HTMLSelectElement>) => {
+        const id = e.target.value;
+        const saved = savedHeroes.find(h => h.id === id);
+        if (saved) {
+            props.onHeroUpdate({ ...saved });
+        }
+    };
 
     return (
         <>
@@ -78,7 +110,15 @@ export const Setup: React.FC<SetupProps> = (props) => {
                     
                     {/* Left Column: Cast */}
                     <div className="flex-1 flex flex-col gap-2">
-                        <div className="font-comic text-xl text-black border-b-4 border-black mb-1">1. THE CAST</div>
+                        <div className="font-comic text-xl text-black border-b-4 border-black mb-1 flex justify-between items-end">
+                            <span>1. THE CAST</span>
+                            {savedHeroes.length > 0 && (
+                                <select onChange={handleLoadHero} className="text-xs font-sans border border-black p-1 bg-yellow-100 rounded">
+                                    <option value="">📂 Load Saved...</option>
+                                    {savedHeroes.map(h => <option key={h.id} value={h.id}>{h.name}</option>)}
+                                </select>
+                            )}
+                        </div>
                         
                         {/* HERO UPLOAD */}
                         <div className={`p-3 border-4 border-dashed ${props.hero ? 'border-green-500 bg-green-50' : 'border-blue-300 bg-blue-50'} transition-colors relative group`}>
@@ -191,7 +231,7 @@ export const Setup: React.FC<SetupProps> = (props) => {
           </div>
         </div>
 
-        <Footer />
+        <Footer isInstallable={isInstallable} onInstall={promptInstall} />
         </>
     );
 }

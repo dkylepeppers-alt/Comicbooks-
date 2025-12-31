@@ -3,10 +3,15 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Gemini Dynamic Comics</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, maximum-scale=1.0, user-scalable=no" />
+    <meta name="theme-color" content="#000000" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="description" content="Create personalized infinite comic books with AI." />
+    <title>Infinite Heroes</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link rel="apple-touch-icon" href="/icon-192x192.png">
     <!-- Bangers for titles, Comic Neue for text -->
     <link href="https://fonts.googleapis.com/css2?family=Bangers&family=Comic+Neue:ital,wght@0,400;0,700;1,400;1,700&display=swap" rel="stylesheet">
     <script src="https://cdn.tailwindcss.com"></script>
@@ -35,6 +40,8 @@
         min-height: 100vh;
         font-family: 'Comic Neue', sans-serif;
         margin: 0;
+        /* Prevent pull-to-refresh on mobile */
+        overscroll-behavior-y: none;
       }
       
       /* Lock overflow only on desktop to maintain the fixed app feel.
@@ -51,7 +58,7 @@
         justify-content: center;
         align-items: center;
         min-height: 100vh;
-        padding: 0; /* Removed padding as requested */
+        padding: 0; 
         perspective: 3500px;
         /* Ensure enough space for opened book (2x page width) on larger screens */
         min-width: 100vw;
@@ -187,14 +194,6 @@
           background-color: #0a0a0a;
       }
 
-
-      .sketch-mode {
-        background-color: #f0f0f0;
-        background-image: linear-gradient(45deg, #e0e0e0 25%, transparent 25%, transparent 75%, #e0e0e0 75%, #e0e0e0), linear-gradient(45deg, #e0e0e0 25%, transparent 25%, transparent 75%, #e0e0e0 75%, #e0e0e0);
-        background-size: 20px 20px;
-        background-position: 0 0, 10px 10px;
-      }
-
       .comic-btn {
         font-family: 'Bangers', cursive;
         letter-spacing: 1.5px;
@@ -251,7 +250,11 @@
     "@google/genai": "https://aistudiocdn.com/@google/genai@^1.27.0",
     "react-dom/": "https://aistudiocdn.com/react-dom@^19.2.0/",
     "recharts": "https://aistudiocdn.com/recharts@^3.3.0",
-    "jspdf": "https://aistudiocdn.com/jspdf@^3.0.3"
+    "jspdf": "https://aistudiocdn.com/jspdf@^3.0.3",
+    "idb": "https://aistudiocdn.com/idb@^8.0.0",
+    "vite": "https://esm.sh/vite@^7.3.0",
+    "@vitejs/plugin-react": "https://esm.sh/@vitejs/plugin-react@^5.1.2",
+    "vite-plugin-pwa": "https://esm.sh/vite-plugin-pwa@^1.2.0"
   }
 }
 </script>
