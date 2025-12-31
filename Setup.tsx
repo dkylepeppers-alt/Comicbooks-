@@ -100,12 +100,20 @@ export const Setup: React.FC<SetupProps> = (props) => {
     const [isOnline, setIsOnline] = useState(navigator.onLine);
     
     const refreshLibrary = () => {
-        StorageService.getCharacters().then(setSavedCharacters);
+        StorageService.getCharacters()
+            .then(setSavedCharacters)
+            .catch(error => {
+                console.error('Failed to load character library:', error);
+                actions.addNotification('error', 'Failed to load saved characters. Please try reconnecting your library.');
+            });
     };
 
     useEffect(() => {
         refreshLibrary();
-        actions.loadWorlds();
+        actions.loadWorlds().catch((error: Error) => {
+            console.error('Failed to load worlds:', error);
+            actions.addNotification('error', 'Failed to load saved worlds. Please try reconnecting your library.');
+        });
 
         const handleOnline = () => setIsOnline(true);
         const handleOffline = () => setIsOnline(false);
@@ -121,7 +129,12 @@ export const Setup: React.FC<SetupProps> = (props) => {
     useEffect(() => {
         if (props.hero?.name && props.hero.name.length > 2 && props.hero.base64) {
             const timer = setTimeout(() => {
-                StorageService.saveCharacter(props.hero!).then(refreshLibrary);
+                StorageService.saveCharacter(props.hero!)
+                    .then(refreshLibrary)
+                    .catch(error => {
+                        console.error('Failed to save hero:', error);
+                        actions.addNotification('warning', 'Hero saved locally but failed to persist to library');
+                    });
             }, 1000);
             return () => clearTimeout(timer);
         }
@@ -131,7 +144,12 @@ export const Setup: React.FC<SetupProps> = (props) => {
     useEffect(() => {
         if (props.friend?.name && props.friend.name.length > 2 && props.friend.base64) {
             const timer = setTimeout(() => {
-                StorageService.saveCharacter(props.friend!).then(refreshLibrary);
+                StorageService.saveCharacter(props.friend!)
+                    .then(refreshLibrary)
+                    .catch(error => {
+                        console.error('Failed to save sidekick:', error);
+                        actions.addNotification('warning', 'Sidekick saved locally but failed to persist to library');
+                    });
             }, 1000);
             return () => clearTimeout(timer);
         }
@@ -164,26 +182,61 @@ export const Setup: React.FC<SetupProps> = (props) => {
     };
 
     const handleSaveWorld = (world: World) => {
-        actions.saveWorld(world);
-        actions.setWorld(world);
-        setShowWorldBuilder(false);
+        actions.saveWorld(world)
+            .then(() => {
+                actions.addNotification('success', `World "${world.name}" saved successfully!`, 3000);
+                actions.setWorld(world);
+                setShowWorldBuilder(false);
+            })
+            .catch((error: Error) => {
+                console.error('Failed to save world:', error);
+                actions.addNotification('error', 'Failed to save world. Please try again.');
+            });
     };
 
     const handleConnectStorage = async () => {
-        const connected = await StorageService.connectLocalLibrary();
-        if (connected) {
-            refreshLibrary();
-            actions.loadWorlds();
+        try {
+            const connected = await StorageService.connectLocalLibrary();
+            if (connected) {
+                actions.addNotification('success', 'Local library connected successfully!', 3000);
+                refreshLibrary();
+                actions.loadWorlds().catch((error: Error) => {
+                    console.error('Failed to load worlds after connection:', error);
+                    actions.addNotification('warning', 'Library connected but failed to load worlds');
+                });
+            } else {
+                actions.addNotification('info', 'Library connection cancelled');
+            }
+        } catch (error) {
+            console.error('Failed to connect library:', error);
+            actions.addNotification('error', 'Failed to connect to local library. Please try again.');
         }
+    };
+
+    const handleDeleteWorld = (worldId: string, worldName: string) => {
+        if (!window.confirm(`Are you sure you want to delete the world "${worldName}"? This action cannot be undone.`)) {
+            return;
+        }
+
+        actions.deleteWorld(worldId)
+            .then(() => {
+                actions.addNotification('success', `World "${worldName}" deleted successfully`, 3000);
+                actions.setWorld(null);
+            })
+            .catch((error: Error) => {
+                console.error('Failed to delete world:', error);
+                actions.addNotification('error', `Failed to delete world "${worldName}". Please try again.`);
+            });
     };
 
     return (
         <>
         {showWorldBuilder && (
-            <WorldBuilder 
-                savedHeroes={savedCharacters} 
-                onSave={handleSaveWorld} 
-                onCancel={() => setShowWorldBuilder(false)} 
+            <WorldBuilder
+                savedHeroes={savedCharacters}
+                onSave={handleSaveWorld}
+                onCancel={() => setShowWorldBuilder(false)}
+                addNotification={actions.addNotification}
             />
         )}
 
@@ -355,7 +408,7 @@ export const Setup: React.FC<SetupProps> = (props) => {
                                                 </div>
                                             )}
                                         </div>
-                                        <button onClick={() => actions.deleteWorld(state.currentWorld!.id)} className="text-[10px] text-red-500 underline self-end hover:text-red-700">Delete World</button>
+                                        <button onClick={() => handleDeleteWorld(state.currentWorld!.id, state.currentWorld!.name)} className="text-[10px] text-red-500 underline self-end hover:text-red-700">Delete World</button>
                                     </div>
                                 ) : (
                                     <div className="flex-1 border-2 border-dashed border-gray-400 flex items-center justify-center text-center p-4">

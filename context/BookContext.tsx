@@ -6,7 +6,7 @@
 
 import React, { createContext, useContext, ReactNode } from 'react';
 import { useComicEngine } from '../hooks/useComicEngine';
-import { ComicState, Persona, StoryConfig, World } from '../types';
+import { ComicState, Persona, StoryConfig, World, NotificationType } from '../types';
 
 interface BookContextType {
   state: ComicState;
@@ -26,6 +26,9 @@ interface BookContextType {
     setSheetIndex: (idx: number) => void;
     reset: () => void;
     clearError: () => void;
+    addNotification: (type: NotificationType, message: string, duration?: number) => void;
+    removeNotification: (id: string) => void;
+    clearNotifications: () => void;
   };
 }
 

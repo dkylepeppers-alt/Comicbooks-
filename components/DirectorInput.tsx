@@ -8,9 +8,10 @@ import React, { useState } from 'react';
 
 interface DirectorInputProps {
     onContinue: (instruction: string) => void;
+    isGenerating?: boolean;
 }
 
-export const DirectorInput: React.FC<DirectorInputProps> = ({ onContinue }) => {
+export const DirectorInput: React.FC<DirectorInputProps> = ({ onContinue, isGenerating = false }) => {
     const [instruction, setInstruction] = useState("");
 
     return (
@@ -39,12 +40,19 @@ export const DirectorInput: React.FC<DirectorInputProps> = ({ onContinue }) => {
                     autoFocus
                  />
 
-                 <button 
+                 <button
                     onClick={() => onContinue(instruction || "Something unexpected happens!")}
-                    className="comic-btn bg-blue-500 text-white w-full py-4 text-2xl hover:bg-blue-400"
+                    disabled={isGenerating}
+                    className={`comic-btn w-full py-4 text-2xl ${isGenerating ? 'bg-gray-400 text-gray-700 cursor-not-allowed' : 'bg-blue-500 text-white hover:bg-blue-400'}`}
                  >
-                    GENERATE NEXT PAGES &rarr;
+                    {isGenerating ? 'GENERATING...' : 'GENERATE NEXT PAGES →'}
                  </button>
+
+                 {isGenerating && (
+                     <p className="text-center text-xs text-gray-500 mt-2">
+                         Please wait for current pages to finish generating
+                     </p>
+                 )}
              </div>
         </div>
     );

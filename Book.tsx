@@ -103,7 +103,7 @@ export const Book: React.FC = () => {
               // 2. The previous page (back of i-1) exists
               // 3. We are not finished with the book
               const showDirectorFront = !sheet.front && !isBookFinished && maxGeneratedPage < frontPageNum;
-              
+
               // Check if we should show Director Input on the Back of this sheet
               // Show if:
               // 1. Front exists
@@ -111,19 +111,22 @@ export const Book: React.FC = () => {
               // 3. Not finished
               const showDirectorBack = sheet.front && !sheet.back && !isBookFinished && maxGeneratedPage < backPageNum;
 
+              // Check if currently generating to disable director input
+              const isGenerating = state.loadingProgress !== null || state.comicFaces.some(face => face.isLoading);
+
               return (
                   <div key={i} className={`paper ${i < state.currentSheetIndex ? 'flipped' : ''}`} style={{ zIndex: i < state.currentSheetIndex ? i : sheetsToRender.length - i }}
                        onClick={() => handleSheetClick(i)}>
                       <div className="front">
                           {showDirectorFront ? (
-                              <DirectorInput onContinue={actions.continueStory} />
+                              <DirectorInput onContinue={actions.continueStory} isGenerating={isGenerating} />
                           ) : (
                               <Panel face={sheet.front} allFaces={state.comicFaces} onOpenBook={() => actions.setSheetIndex(1)} onDownload={downloadPDF} />
                           )}
                       </div>
                       <div className="back">
                            {showDirectorBack ? (
-                              <DirectorInput onContinue={actions.continueStory} />
+                              <DirectorInput onContinue={actions.continueStory} isGenerating={isGenerating} />
                           ) : (
                               <Panel face={sheet.back} allFaces={state.comicFaces} onOpenBook={() => actions.setSheetIndex(1)} onDownload={downloadPDF} />
                           )}
