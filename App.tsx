@@ -14,7 +14,12 @@ import { Persona } from './types';
 
 const AppContent: React.FC = () => {
   const { state, actions } = useBook();
-  const { showApiKeyDialog, setShowApiKeyDialog, handleApiKeyDialogContinue } = useApiKey();
+  const { showApiKeyDialog, setShowApiKeyDialog, validateApiKey, handleApiKeyDialogContinue } = useApiKey();
+
+  // Check for API key on mount
+  React.useEffect(() => {
+    validateApiKey();
+  }, [validateApiKey]);
 
   // Sync API errors from state to the dialog hook
   React.useEffect(() => {
