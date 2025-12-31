@@ -12,7 +12,6 @@ updates:
       - "automated"
     commit-message:
       prefix: "chore"
-      include: "scope"
     groups:
       minor-and-patch:
         update-types:
