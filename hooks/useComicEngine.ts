@@ -5,11 +5,11 @@
 */
 
 import { useReducer, useCallback, useRef } from 'react';
-import { 
-  ComicState, 
-  ComicAction, 
-  ComicFace, 
-  StoryConfig, 
+import {
+  ComicState,
+  ComicAction,
+  ComicFace,
+  StoryConfig,
   Persona,
   World,
   GENRES,
@@ -19,8 +19,7 @@ import {
   TOTAL_PAGES,
   BACK_COVER_PAGE,
   BATCH_SIZE,
-  DECISION_PAGES,
-  LoadingProgress
+  DECISION_PAGES
 } from '../types';
 import { AiService } from '../services/aiService';
 import { StorageService } from '../services/storage';
@@ -34,9 +33,9 @@ const initialState: ComicState = {
   currentWorld: null,
   availableWorlds: [],
   config: {
-    genre: GENRES[0],
-    tone: TONES[0],
-    language: LANGUAGES[0].code,
+    genre: GENRES[0] ?? 'Custom',
+    tone: TONES[0] ?? 'ACTION-HEAVY',
+    language: LANGUAGES[0]?.code ?? 'en-US',
     customPremise: "",
     openingPrompt: "",
     richMode: true,
@@ -343,7 +342,7 @@ export const useComicEngine = () => {
   }, [state.config, state.hero, state.friend, state.currentWorld, generateBatch]);
 
   const continueStory = useCallback((userGuidance: string) => {
-      const currentMax = Math.max(...state.comicFaces.map(f => f.pageIndex || 0));
+      const currentMax = Math.max(...state.comicFaces.map((f: ComicFace) => f.pageIndex || 0));
       if (currentMax < TOTAL_PAGES) {
           const nextPage = currentMax + 1;
           // Generate small batch (2 pages) to keep control tight
@@ -356,7 +355,7 @@ export const useComicEngine = () => {
   const handleChoice = useCallback(async (pageIndex: number, choice: string) => {
     dispatch({ type: 'UPDATE_FACE', payload: { id: `page-${pageIndex}`, updates: { resolvedChoice: choice } } });
     // For decisions, we treat the choice AS the guidance for the next batch
-    const currentMax = Math.max(...state.comicFaces.map(f => f.pageIndex || 0));
+    const currentMax = Math.max(...state.comicFaces.map((f: ComicFace) => f.pageIndex || 0));
     if (currentMax + 1 <= TOTAL_PAGES) {
       generateBatch(currentMax + 1, BATCH_SIZE, state.comicFaces, state.hero!, state.friend!, state.config, state.currentWorld, `User chose: ${choice}`);
       dispatch({ type: 'SET_SHEET_INDEX', payload: state.currentSheetIndex + 1 });

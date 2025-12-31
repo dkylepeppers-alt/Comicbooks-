@@ -28,7 +28,7 @@ let rootHandle: any | null = null; // FileSystemDirectoryHandle
 const initDB = () => {
   if (!dbPromise) {
     dbPromise = openDB<HeroesDB>(DB_NAME, 2, {
-      upgrade(db, oldVersion, newVersion, transaction) {
+      upgrade(db, _oldVersion, _newVersion, _transaction) {
         if (!db.objectStoreNames.contains(STORE_HEROES)) {
           db.createObjectStore(STORE_HEROES, { keyPath: 'id' });
         }
@@ -42,14 +42,6 @@ const initDB = () => {
 };
 
 // --- FILE SYSTEM HELPERS ---
-const verifyPermission = async (handle: any, readWrite: boolean) => {
-    const options: any = {};
-    if (readWrite) options.mode = 'readwrite';
-    if ((await handle.queryPermission(options)) === 'granted') return true;
-    if ((await handle.requestPermission(options)) === 'granted') return true;
-    return false;
-};
-
 const getSubDir = async (name: string) => {
     if (!rootHandle) return null;
     try {

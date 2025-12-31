@@ -24,7 +24,8 @@ export const WorldBuilder: React.FC<WorldBuilderProps> = ({ existingWorld, saved
         if (images.length >= 3) return;
         const reader = new FileReader();
         reader.onload = () => {
-            const base64 = (reader.result as string).split(',')[1];
+            const result = reader.result as string;
+            const base64 = result.split(',')[1] ?? '';
             setImages(prev => [...prev, base64]);
         };
         reader.readAsDataURL(file);

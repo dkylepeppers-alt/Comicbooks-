@@ -27,12 +27,13 @@ const AppContent: React.FC = () => {
   const handleHeroUpload = async (file: File) => {
     const reader = new FileReader();
     reader.onload = () => {
-        const base64 = (reader.result as string).split(',')[1];
+        const result = reader.result as string;
+        const base64 = result.split(',')[1] ?? '';
         const existing: Partial<Persona> = state.hero || {};
-        actions.setHero({ 
-            base64, 
-            name: existing.name || "", 
-            description: existing.description || "" 
+        actions.setHero({
+            base64,
+            name: existing.name || "",
+            description: existing.description || ""
         });
     };
     reader.readAsDataURL(file);
@@ -41,12 +42,13 @@ const AppContent: React.FC = () => {
   const handleFriendUpload = async (file: File) => {
     const reader = new FileReader();
     reader.onload = () => {
-        const base64 = (reader.result as string).split(',')[1];
+        const result = reader.result as string;
+        const base64 = result.split(',')[1] ?? '';
         const existing: Partial<Persona> = state.friend || {};
-        actions.setFriend({ 
-            base64, 
-            name: existing.name || "", 
-            description: existing.description || "" 
+        actions.setFriend({
+            base64,
+            name: existing.name || "",
+            description: existing.description || ""
         });
     };
     reader.readAsDataURL(file);
