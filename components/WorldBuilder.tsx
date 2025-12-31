@@ -5,29 +5,63 @@
 */
 
 import React, { useState } from 'react';
-import { World, Persona } from '../types';
+import { World, Persona, NotificationType } from '../types';
 
 interface WorldBuilderProps {
     existingWorld?: World | null;
     savedHeroes: (Persona & { id: string })[];
     onSave: (world: World) => void;
     onCancel: () => void;
+    addNotification: (type: NotificationType, message: string, duration?: number) => void;
 }
 
-export const WorldBuilder: React.FC<WorldBuilderProps> = ({ existingWorld, savedHeroes, onSave, onCancel }) => {
+export const WorldBuilder: React.FC<WorldBuilderProps> = ({ existingWorld, savedHeroes, onSave, onCancel, addNotification }) => {
     const [name, setName] = useState(existingWorld?.name || "");
     const [description, setDescription] = useState(existingWorld?.description || "");
     const [images, setImages] = useState<string[]>(existingWorld?.images || []);
     const [linkedPersonaIds, setLinkedPersonaIds] = useState<string[]>(existingWorld?.linkedPersonaIds || []);
 
     const handleImageUpload = (file: File) => {
-        if (images.length >= 3) return;
+        if (images.length >= 3) {
+            addNotification('warning', 'Maximum 3 reference images allowed');
+            return;
+        }
+
+        // Validate file type
+        if (!file.type.startsWith('image/')) {
+            addNotification('error', 'Please upload a valid image file (JPG, PNG, GIF, etc.)');
+            return;
+        }
+
+        // Validate file size (max 10MB)
+        const maxSize = 10 * 1024 * 1024; // 10MB in bytes
+        if (file.size > maxSize) {
+            addNotification('error', `File too large! Maximum size is 10MB. Your file is ${(file.size / 1024 / 1024).toFixed(1)}MB`);
+            return;
+        }
+
         const reader = new FileReader();
+
         reader.onload = () => {
-            const result = reader.result as string;
-            const base64 = result.split(',')[1] ?? '';
-            setImages(prev => [...prev, base64]);
+            try {
+                const result = reader.result as string;
+                const base64 = result.split(',')[1] ?? '';
+
+                if (!base64) {
+                    throw new Error('Failed to process image data');
+                }
+
+                setImages(prev => [...prev, base64]);
+                addNotification('success', 'World reference image added!', 2000);
+            } catch (error) {
+                addNotification('error', `Error processing image: ${error instanceof Error ? error.message : 'Unknown error'}`);
+            }
         };
+
+        reader.onerror = () => {
+            addNotification('error', 'Failed to read the image file. Please try again.');
+        };
+
         reader.readAsDataURL(file);
     };
 

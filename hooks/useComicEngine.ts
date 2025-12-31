@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
 */
 
-import { useReducer, useCallback, useRef } from 'react';
+import React, { useReducer, useCallback, useRef } from 'react';
 import {
   ComicState,
   ComicAction,
@@ -12,6 +12,8 @@ import {
   StoryConfig,
   Persona,
   World,
+  Notification,
+  NotificationType,
   GENRES,
   TONES,
   LANGUAGES,
@@ -42,6 +44,7 @@ const initialState: ComicState = {
   },
   loadingProgress: null,
   error: null,
+  notifications: [],
 };
 
 function reducer(state: ComicState, action: ComicAction): ComicState {
@@ -89,6 +92,12 @@ function reducer(state: ComicState, action: ComicAction): ComicState {
       return { ...state, loadingProgress: action.payload };
     case 'SET_ERROR':
       return { ...state, error: action.payload, loadingProgress: null };
+    case 'ADD_NOTIFICATION':
+      return { ...state, notifications: [...state.notifications, action.payload] };
+    case 'REMOVE_NOTIFICATION':
+      return { ...state, notifications: state.notifications.filter(n => n.id !== action.payload) };
+    case 'CLEAR_NOTIFICATIONS':
+      return { ...state, notifications: [] };
     case 'RESET':
       return initialState;
     default:
@@ -98,9 +107,30 @@ function reducer(state: ComicState, action: ComicAction): ComicState {
 
 export const useComicEngine = () => {
   const [state, dispatch] = useReducer(reducer, initialState);
-  
+
   // Ref used only to prevent duplicate batch triggers
   const generatingPagesRef = useRef<Set<number>>(new Set());
+
+  // Ref to track active timeouts for cleanup
+  const activeTimeoutsRef = useRef<Set<NodeJS.Timeout>>(new Set());
+
+  // Ref to track if component is mounted (for cleanup)
+  const isMountedRef = useRef<boolean>(true);
+
+  // Cleanup function for timeouts
+  const clearAllTimeouts = useCallback(() => {
+    activeTimeoutsRef.current.forEach(timeout => clearTimeout(timeout));
+    activeTimeoutsRef.current.clear();
+  }, []);
+
+  // Set mounted status and cleanup on unmount
+  React.useEffect(() => {
+    isMountedRef.current = true;
+    return () => {
+      isMountedRef.current = false;
+      clearAllTimeouts();
+    };
+  }, [clearAllTimeouts]);
 
   // Actions
   const setHero = useCallback((p: Persona | null) => dispatch({ type: 'SET_HERO', payload: p }), []);
@@ -128,25 +158,27 @@ export const useComicEngine = () => {
   const updateConfig = useCallback((updates: Partial<StoryConfig>) => dispatch({ type: 'UPDATE_CONFIG', payload: updates }), []);
   
   const generateBatch = useCallback(async (
-      startPage: number, 
-      count: number, 
-      currentFaces: ComicFace[], 
-      currentHero: Persona, 
-      currentFriend: Persona | null, 
-      currentConfig: StoryConfig, 
+      startPage: number,
+      count: number,
+      currentFaces: ComicFace[],
+      currentHero: Persona,
+      currentFriend: Persona | null,
+      currentConfig: StoryConfig,
       currentWorld: World | null,
       userGuidance?: string
   ) => {
+    // Atomically check and reserve pages to prevent race conditions
     const pagesToGen: number[] = [];
     for (let i = 0; i < count; i++) {
         const p = startPage + i;
         if (p <= TOTAL_PAGES && !generatingPagesRef.current.has(p)) {
+            // Immediately add to set to reserve atomically
+            generatingPagesRef.current.add(p);
             pagesToGen.push(p);
         }
     }
-    
+
     if (pagesToGen.length === 0) return;
-    pagesToGen.forEach(p => generatingPagesRef.current.add(p));
 
     // Optimistically add placeholders
     const newFaces: ComicFace[] = pagesToGen.map(pageNum => ({
@@ -267,7 +299,16 @@ export const useComicEngine = () => {
       }
     } finally {
       pagesToGen.forEach(p => generatingPagesRef.current.delete(p));
-      setTimeout(() => dispatch({ type: 'SET_LOADING_PROGRESS', payload: null }), 1000);
+
+      // Use tracked timeout with cleanup
+      const cleanupTimeout = setTimeout(() => {
+        if (isMountedRef.current) {
+          dispatch({ type: 'SET_LOADING_PROGRESS', payload: null });
+        }
+        activeTimeoutsRef.current.delete(cleanupTimeout);
+      }, 1000);
+
+      activeTimeoutsRef.current.add(cleanupTimeout);
     }
   }, [setFriend]);
 
@@ -319,7 +360,10 @@ export const useComicEngine = () => {
         }
     });
 
-    setTimeout(() => {
+    // Use tracked timeout with cleanup
+    const transitionTimeout = setTimeout(() => {
+        if (!isMountedRef.current) return;
+
         dispatch({ type: 'TRANSITION_COMPLETE' });
 
         // Start first batch (Pages 1-2) with Opening Prompt
@@ -337,7 +381,10 @@ export const useComicEngine = () => {
         generateBatch(1, INITIAL_PAGES, [coverFace], state.hero!, state.friend, state.config, state.currentWorld, state.config.openingPrompt);
 
         // Removed subsequent auto-batches to allow user direction
+        activeTimeoutsRef.current.delete(transitionTimeout);
     }, 1100);
+
+    activeTimeoutsRef.current.add(transitionTimeout);
 
   }, [state.config, state.hero, state.friend, state.currentWorld, generateBatch]);
 
@@ -363,9 +410,29 @@ export const useComicEngine = () => {
   }, [state.comicFaces, state.hero, state.friend, state.config, state.currentWorld, generateBatch, state.currentSheetIndex]);
 
   const setSheetIndex = useCallback((idx: number) => dispatch({ type: 'SET_SHEET_INDEX', payload: idx }), []);
-  const reset = useCallback(() => { 
+  const reset = useCallback(() => {
       generatingPagesRef.current.clear();
-      dispatch({ type: 'RESET' }); 
+      dispatch({ type: 'RESET' });
+  }, []);
+
+  // Notification actions
+  const addNotification = useCallback((type: NotificationType, message: string, duration: number = 5000) => {
+    const notification: Notification = {
+      id: `notif-${Date.now()}-${Math.random()}`,
+      type,
+      message,
+      timestamp: Date.now(),
+      duration
+    };
+    dispatch({ type: 'ADD_NOTIFICATION', payload: notification });
+  }, []);
+
+  const removeNotification = useCallback((id: string) => {
+    dispatch({ type: 'REMOVE_NOTIFICATION', payload: id });
+  }, []);
+
+  const clearNotifications = useCallback(() => {
+    dispatch({ type: 'CLEAR_NOTIFICATIONS' });
   }, []);
 
   return {
@@ -385,7 +452,10 @@ export const useComicEngine = () => {
       handleChoice,
       setSheetIndex,
       reset,
-      clearError: () => dispatch({ type: 'SET_ERROR', payload: '' })
+      clearError: () => dispatch({ type: 'SET_ERROR', payload: '' }),
+      addNotification,
+      removeNotification,
+      clearNotifications
     }
   };
 };

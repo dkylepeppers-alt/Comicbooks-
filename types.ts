@@ -92,6 +92,34 @@ export interface LoadingProgress {
     startTime?: number; // Timestamp when progress started
 }
 
+// Error Types
+export type ErrorType =
+  | 'API_KEY_ERROR'
+  | 'NETWORK_ERROR'
+  | 'STORAGE_ERROR'
+  | 'FILE_UPLOAD_ERROR'
+  | 'GENERATION_ERROR'
+  | 'TIMEOUT_ERROR'
+  | 'UNKNOWN_ERROR';
+
+export interface AppError {
+  type: ErrorType;
+  message: string;
+  timestamp: number;
+  details?: string;
+}
+
+// Notification Types
+export type NotificationType = 'success' | 'error' | 'warning' | 'info';
+
+export interface Notification {
+  id: string;
+  type: NotificationType;
+  message: string;
+  timestamp: number;
+  duration?: number; // Auto-dismiss after ms (0 = no auto-dismiss)
+}
+
 // Reducer & Context Types
 export type EngineStatus = 'idle' | 'setup' | 'generating' | 'reading' | 'error';
 
@@ -106,6 +134,7 @@ export interface ComicState {
   config: StoryConfig;
   loadingProgress: LoadingProgress | null;
   error: string | null;
+  notifications: Notification[];
 }
 
 export type ComicAction =
@@ -125,4 +154,7 @@ export type ComicAction =
   | { type: 'SET_SHEET_INDEX'; payload: number }
   | { type: 'SET_LOADING_PROGRESS'; payload: LoadingProgress | null }
   | { type: 'SET_ERROR'; payload: string }
+  | { type: 'ADD_NOTIFICATION'; payload: Notification }
+  | { type: 'REMOVE_NOTIFICATION'; payload: string }
+  | { type: 'CLEAR_NOTIFICATIONS' }
   | { type: 'RESET' };
