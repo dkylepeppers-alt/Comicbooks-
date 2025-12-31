@@ -163,18 +163,36 @@ export const useComicEngine = () => {
     let batchHistory = [...currentFaces, ...newFaces];
     let completed = 0;
     const total = pagesToGen.length;
+    const startTime = Date.now();
 
-    dispatch({ 
-        type: 'SET_LOADING_PROGRESS', 
-        payload: { current: 0, total, label: `Generating Page ${startPage}` } 
+    dispatch({
+        type: 'SET_LOADING_PROGRESS',
+        payload: {
+            current: 0,
+            total,
+            label: `Generating Pages ${startPage}-${startPage + count - 1}`,
+            substep: 'Preparing story context...',
+            percentage: 0,
+            startTime
+        }
     });
 
     try {
       // Process sequentially
       for (const pageNum of pagesToGen) {
-        dispatch({ 
-            type: 'SET_LOADING_PROGRESS', 
-            payload: { current: completed + 1, total, label: `Writing Page ${pageNum}...` } 
+        const currentStep = completed + 1;
+        const percentage = Math.round((currentStep / total) * 100);
+
+        dispatch({
+            type: 'SET_LOADING_PROGRESS',
+            payload: {
+                current: currentStep,
+                total,
+                label: `Writing Page ${pageNum}`,
+                substep: 'AI is crafting story beats...',
+                percentage,
+                startTime
+            }
         });
 
         const faceId = `page-${pageNum}`;
@@ -193,9 +211,16 @@ export const useComicEngine = () => {
         let activeFriend = currentFriend;
         if (beat.focus_char === 'friend' && !activeFriend && type === 'story') {
            try {
-              dispatch({ 
-                 type: 'SET_LOADING_PROGRESS', 
-                 payload: { current: completed + 1, total, label: `Casting Sidekick...` } 
+              dispatch({
+                 type: 'SET_LOADING_PROGRESS',
+                 payload: {
+                    current: currentStep,
+                    total,
+                    label: `Casting Sidekick for Page ${pageNum}`,
+                    substep: 'Generating character appearance...',
+                    percentage,
+                    startTime
+                 }
               });
               const desc = currentConfig.genre === 'Custom' ? "A fitting sidekick for this story" : `Sidekick for ${currentConfig.genre} story.`;
               activeFriend = await AiService.generatePersona(desc, currentConfig.genre);
@@ -211,9 +236,16 @@ export const useComicEngine = () => {
         dispatch({ type: 'UPDATE_FACE', payload: { id: faceId, updates: { narrative: beat, choices: beat.choices, isDecisionPage: isDecision } } });
 
         // Generate Image
-        dispatch({ 
-            type: 'SET_LOADING_PROGRESS', 
-            payload: { current: completed + 1, total, label: `Inking Panel ${pageNum}...` } 
+        dispatch({
+            type: 'SET_LOADING_PROGRESS',
+            payload: {
+                current: currentStep,
+                total,
+                label: `Inking Panel ${pageNum}`,
+                substep: 'Rendering artwork with AI...',
+                percentage,
+                startTime
+            }
         });
         const url = await AiService.generateImage(beat, type, currentConfig, currentHero, activeFriend, currentWorld);
         
@@ -243,9 +275,21 @@ export const useComicEngine = () => {
   const launchStory = useCallback(async () => {
     if (!state.hero) return;
     dispatch({ type: 'START_ADVENTURE' });
-    
+
+    const startTime = Date.now();
+
     // Dispatch Launch Progress
-    dispatch({ type: 'SET_LOADING_PROGRESS', payload: { current: 1, total: 3, label: "Painting Cover Art..." } });
+    dispatch({
+        type: 'SET_LOADING_PROGRESS',
+        payload: {
+            current: 1,
+            total: 3,
+            label: "Painting Cover Art",
+            substep: 'Creating epic cover design...',
+            percentage: 33,
+            startTime
+        }
+    });
 
     // Generate Cover
     const coverFace: ComicFace = { id: 'cover', type: 'cover', choices: [], isLoading: true, pageIndex: 0 };
@@ -264,15 +308,35 @@ export const useComicEngine = () => {
         return;
     }
 
-    dispatch({ type: 'SET_LOADING_PROGRESS', payload: { current: 2, total: 3, label: "Binding Pages..." } });
+    dispatch({
+        type: 'SET_LOADING_PROGRESS',
+        payload: {
+            current: 2,
+            total: 3,
+            label: "Binding Pages",
+            substep: 'Preparing your comic book...',
+            percentage: 67,
+            startTime
+        }
+    });
 
     setTimeout(() => {
         dispatch({ type: 'TRANSITION_COMPLETE' });
-        
+
         // Start first batch (Pages 1-2) with Opening Prompt
-        dispatch({ type: 'SET_LOADING_PROGRESS', payload: { current: 3, total: 3, label: "Starting Issue #1..." } });
+        dispatch({
+            type: 'SET_LOADING_PROGRESS',
+            payload: {
+                current: 3,
+                total: 3,
+                label: "Starting Issue #1",
+                substep: 'Launching your adventure...',
+                percentage: 100,
+                startTime
+            }
+        });
         generateBatch(1, INITIAL_PAGES, [coverFace], state.hero!, state.friend, state.config, state.currentWorld, state.config.openingPrompt);
-        
+
         // Removed subsequent auto-batches to allow user direction
     }, 1100);
 
