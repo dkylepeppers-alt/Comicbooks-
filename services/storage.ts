@@ -152,7 +152,7 @@ export const StorageService = {
         const handle = await (window as any).showDirectoryPicker();
         const hasAccess = await verifyHandle(handle);
         if (!hasAccess) {
-          alert('We could not get permission to that folder. Please try again.');
+          alert('Could not get permission to that folder. Please try again.');
           return false;
         }
 
