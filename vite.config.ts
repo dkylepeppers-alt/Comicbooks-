@@ -44,6 +44,8 @@ export default defineConfig({
       workbox: {
         globPatterns: ['**/*.{js,css,html,ico,png,svg}'],
         navigateFallback: '/index.html',
+        // Increase cache size limits for comic book images
+        maximumFileSizeToCacheInBytes: 5 * 1024 * 1024, // 5MB
         runtimeCaching: [
           {
             urlPattern: /^https:\/\/cdn\.tailwindcss\.com\/.*/i,
@@ -91,4 +93,20 @@ export default defineConfig({
       }
     })
   ],
+  build: {
+    // Optimize for mobile performance
+    target: 'es2020',
+    cssCodeSplit: true,
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          // Separate vendor chunks for better caching
+          'react-vendor': ['react', 'react-dom'],
+          'pdf-vendor': ['jspdf'],
+          'ai-vendor': ['@google/genai'],
+          'storage-vendor': ['idb'],
+        }
+      }
+    }
+  }
 });
