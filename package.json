@@ -8,8 +8,8 @@
     "build": "vite build",
     "build:termux": "vite build --config vite.config.termux.ts",
     "preview": "vite preview",
-    "lint": "eslint . --ext .ts,.tsx",
-    "lint:fix": "eslint . --ext .ts,.tsx --fix"
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix"
   },
   "dependencies": {
     "@google/genai": "^1.27.0",
