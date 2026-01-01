@@ -68,15 +68,20 @@ const readFiles = async <T>(dirHandle: any): Promise<T[]> => {
     try {
         for await (const entry of dirHandle.values()) {
             if (entry.kind === 'file' && entry.name.endsWith('.json')) {
-                const file = await entry.getFile();
-                const text = await file.text();
                 try {
+                    const file = await entry.getFile();
+                    const text = await file.text();
                     const json = JSON.parse(text);
                     results.push(json);
-                } catch (e) { console.warn("Invalid JSON", entry.name); }
+                } catch (e) {
+                    console.warn(`Failed to read or parse file ${entry.name}:`, e);
+                }
             }
         }
-    } catch (e) { console.error("FS Read Error", e); }
+    } catch (e) {
+        console.error("FS Read Error", e);
+        throw e; // Propagate error so caller knows something went wrong
+    }
     return results;
 };
 
@@ -124,27 +129,78 @@ export const StorageService = {
   async getCharacters(): Promise<(Persona & { id: string })[]> {
     let fsItems: any[] = [];
     let idbItems: any[] = [];
+    let idbError: unknown = null;
 
     // 1. Try File System
     if (rootHandle) {
-        const dir = await getSubDir('characters');
-        if (dir) fsItems = await readFiles(dir);
+        try {
+            const dir = await getSubDir('characters');
+            if (dir) fsItems = await readFiles(dir);
+        } catch (e) {
+            console.error("Failed to read characters from file system:", e);
+            // Continue with IDB even if FS fails
+        }
     }
 
     // 2. Always read from IndexedDB to merge both sources
-    const db = await initDB();
-    idbItems = await db.getAll(STORE_HEROES);
+    try {
+        const db = await initDB();
+        idbItems = await db.getAll(STORE_HEROES);
+    } catch (e) {
+        console.error("Failed to read characters from IndexedDB:", e);
+        idbError = e;
+    }
 
-    // 3. Merge and deduplicate (File System takes precedence over IDB)
-    const mergedMap = new Map<string, any>();
+    // 3. Validate and normalize all items
+    const validateAndNormalize = (item: any): (Persona & { id: string; timestamp: number }) | null => {
+        // Must have a name at minimum
+        if (!item?.name || typeof item.name !== 'string') {
+            console.warn("Skipping character with missing or invalid name:", item);
+            return null;
+        }
+
+        // Generate ID if missing
+        const id = item.id || item.name.toLowerCase().replace(/\s+/g, '-');
+
+        // Ensure required Persona fields exist
+        if (!item.base64 || typeof item.base64 !== 'string') {
+            console.warn(`Skipping character "${item.name}" - missing or invalid base64 image`);
+            return null;
+        }
+
+        return {
+            id,
+            name: item.name,
+            description: item.description || '',
+            base64: item.base64,
+            timestamp: item.timestamp || 0
+        };
+    };
+
+    // 4. Merge and deduplicate (File System takes precedence over IDB)
+    const mergedMap = new Map<string, Persona & { id: string; timestamp: number }>();
 
     // Add IDB items first
-    idbItems.forEach(item => mergedMap.set(item.id, item));
+    idbItems.forEach(item => {
+        const normalized = validateAndNormalize(item);
+        if (normalized) {
+            mergedMap.set(normalized.id, normalized);
+        }
+    });
 
     // File System items override IDB items (newer versions)
-    fsItems.forEach(item => mergedMap.set(item.id, item));
+    fsItems.forEach(item => {
+        const normalized = validateAndNormalize(item);
+        if (normalized) {
+            mergedMap.set(normalized.id, normalized);
+        }
+    });
 
     const items = Array.from(mergedMap.values());
+
+    if (!items.length && idbError) {
+        throw idbError;
+    }
 
     return items.sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
   },
@@ -168,27 +224,70 @@ export const StorageService = {
   async getWorlds(): Promise<World[]> {
     let fsItems: any[] = [];
     let idbItems: any[] = [];
+    let idbError: unknown = null;
 
     // 1. Try File System
     if (rootHandle) {
-        const dir = await getSubDir('worlds');
-        if (dir) fsItems = await readFiles(dir);
+        try {
+            const dir = await getSubDir('worlds');
+            if (dir) fsItems = await readFiles(dir);
+        } catch (e) {
+            console.error("Failed to read worlds from file system:", e);
+            // Continue with IDB even if FS fails
+        }
     }
 
     // 2. Always read from IndexedDB to merge both sources
-    const db = await initDB();
-    idbItems = await db.getAll(STORE_WORLDS);
+    try {
+        const db = await initDB();
+        idbItems = await db.getAll(STORE_WORLDS);
+    } catch (e) {
+        console.error("Failed to read worlds from IndexedDB:", e);
+        idbError = e;
+    }
 
-    // 3. Merge and deduplicate (File System takes precedence over IDB)
-    const mergedMap = new Map<string, any>();
+    // 3. Validate and normalize all items
+    const validateAndNormalize = (item: any): (World & { timestamp: number }) | null => {
+        // Must have required fields
+        if (!item?.id || !item?.name || typeof item.id !== 'string' || typeof item.name !== 'string') {
+            console.warn("Skipping world with missing or invalid id/name:", item);
+            return null;
+        }
+
+        return {
+            id: item.id,
+            name: item.name,
+            description: item.description || '',
+            images: Array.isArray(item.images) ? item.images : [],
+            linkedPersonaIds: Array.isArray(item.linkedPersonaIds) ? item.linkedPersonaIds : [],
+            timestamp: item.timestamp || 0
+        };
+    };
+
+    // 4. Merge and deduplicate (File System takes precedence over IDB)
+    const mergedMap = new Map<string, World & { timestamp: number }>();
 
     // Add IDB items first
-    idbItems.forEach(item => mergedMap.set(item.id, item));
+    idbItems.forEach(item => {
+        const normalized = validateAndNormalize(item);
+        if (normalized) {
+            mergedMap.set(normalized.id, normalized);
+        }
+    });
 
     // File System items override IDB items (newer versions)
-    fsItems.forEach(item => mergedMap.set(item.id, item));
+    fsItems.forEach(item => {
+        const normalized = validateAndNormalize(item);
+        if (normalized) {
+            mergedMap.set(normalized.id, normalized);
+        }
+    });
 
     const items = Array.from(mergedMap.values());
+
+    if (!items.length && idbError) {
+        throw idbError;
+    }
 
     return items.sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
   },
