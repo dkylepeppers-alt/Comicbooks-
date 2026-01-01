@@ -242,7 +242,20 @@ OUTPUT STRICT JSON ONLY (No markdown formatting):
         let rawText = res.text || "{}";
         rawText = rawText.replace(/```json/g, '').replace(/```/g, '').trim();
 
-        const parsed = JSON.parse(rawText);
+        let parsed: Beat;
+
+        try {
+          parsed = JSON.parse(rawText) as Beat;
+        } catch (parseError) {
+          console.error("Beat parsing failed; using fallback beat", parseError);
+          parsed = {
+            scene: "Unexpected twist to keep the story moving forward.",
+            caption: "The story stumbles but keeps going…",
+            dialogue: "We improvise when the script goes missing!",
+            choices: isDecisionPage ? ["Push ahead", "Change course"] : [],
+            focus_char: 'hero'
+          };
+        }
 
         if (parsed.dialogue) parsed.dialogue = parsed.dialogue.replace(/^[\w\s\-]+:\s*/i, '').replace(/["']/g, '').trim();
         if (parsed.caption) parsed.caption = parsed.caption.replace(/^[\w\s\-]+:\s*/i, '').trim();

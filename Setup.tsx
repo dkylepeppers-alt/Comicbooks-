@@ -71,6 +71,45 @@ const Footer = ({ isInstallable, isInstalled, onInstall, onConnectStorage }: { i
   );
 };
 
+const SectionCard = ({
+  title,
+  subtitle,
+  children,
+  actions,
+  defaultOpen = true,
+}: {
+  title: string;
+  subtitle?: string;
+  children: React.ReactNode;
+  actions?: React.ReactNode;
+  defaultOpen?: boolean;
+}) => {
+  const [open, setOpen] = useState(defaultOpen);
+
+  return (
+    <div className="bg-white border-4 border-black shadow-[10px_10px_0px_rgba(0,0,0,0.25)] p-4 flex flex-col gap-2">
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <p className="font-comic text-xl text-black leading-tight">{title}</p>
+          {subtitle && <p className="text-xs text-gray-600 leading-tight">{subtitle}</p>}
+        </div>
+        <div className="flex items-center gap-2">
+          {actions}
+          <button
+            type="button"
+            onClick={() => setOpen((prev) => !prev)}
+            className="text-xs font-bold uppercase bg-gray-100 border-2 border-black px-2 py-1 hover:bg-gray-200"
+          >
+            {open ? 'Hide' : 'Show'}
+          </button>
+        </div>
+      </div>
+
+      {open && <div className="flex flex-col gap-3">{children}</div>}
+    </div>
+  );
+};
+
 export const Setup: React.FC<SetupProps> = (props) => {
     const { isInstallable, isInstalled, promptInstall } = usePWA();
     const { state, actions } = useBook();
@@ -250,22 +289,22 @@ export const Setup: React.FC<SetupProps> = (props) => {
           <div className="min-h-full flex items-center justify-center p-4 pb-32 md:pb-24">
             <div className="max-w-[1100px] w-full bg-white p-4 md:p-5 rotate-1 border-[6px] border-black shadow-[12px_12px_0px_rgba(0,0,0,0.6)] text-center relative">
                 
-                <h1 className="font-comic text-5xl text-red-600 leading-none mb-1 tracking-wide inline-block mr-3" style={{textShadow: '2px 2px 0px black'}}>INFINITE</h1>
-                <h1 className="font-comic text-5xl text-yellow-400 leading-none mb-4 tracking-wide inline-block" style={{textShadow: '2px 2px 0px black'}}>HEROES</h1>
-                
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4 text-left">
-                    
-                    {/* COLUMN 1: THE CAST */}
-                    <div className="flex flex-col gap-2">
-                        <div className="font-comic text-xl text-black border-b-4 border-black mb-1 flex justify-between items-end">
-                            <span>1. THE CAST</span>
-                        </div>
-                        
-                        <div className={`p-3 border-4 border-dashed ${props.hero ? 'border-green-500 bg-green-50' : 'border-blue-300 bg-blue-50'} transition-colors relative group`}>
+                <h1 className="font-comic text-4xl text-red-600 leading-none mb-1 tracking-wide inline-block mr-3" style={{textShadow: '2px 2px 0px black'}}>INFINITE</h1>
+                <h1 className="font-comic text-4xl text-yellow-400 leading-none mb-4 tracking-wide inline-block" style={{textShadow: '2px 2px 0px black'}}>HEROES</h1>
+
+                <p className="text-sm text-gray-700 mb-4 font-sans">Focus on the essentials first. You can collapse sections you are done with to keep the workspace clear.</p>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4 text-left">
+
+                    <SectionCard
+                      title="1. The Cast"
+                      subtitle="Upload and describe your leads."
+                    >
+                        <div className={`p-3 border-2 border-dashed ${props.hero ? 'border-green-500 bg-green-50' : 'border-blue-200 bg-blue-50'} transition-colors relative group rounded-md`}>
                             <div className="flex justify-between items-center mb-2">
                                 <p className="font-comic text-lg uppercase font-bold text-blue-900">HERO (REQUIRED)</p>
                                 {savedCharacters.length > 0 && (
-                                    <select onChange={(e) => handleLoadCharacter(e, 'hero')} className="text-xs font-sans border border-black p-1 bg-yellow-100 rounded w-24">
+                                    <select onChange={(e) => handleLoadCharacter(e, 'hero')} className="text-xs font-sans border border-black p-1 bg-yellow-100 rounded w-28">
                                         <option value="">📂 {props.hero ? 'Swap' : 'Load'}...</option>
                                         {sortedCharacters.map(h => (
                                             <option key={h.id} value={h.id}>
@@ -275,45 +314,45 @@ export const Setup: React.FC<SetupProps> = (props) => {
                                     </select>
                                 )}
                             </div>
-                            
+
                             {props.hero ? (
-                                <div className="flex gap-2 items-start mt-1">
+                                <div className="flex gap-3 items-start mt-1">
                                      <div className="flex flex-col gap-2">
-                                        <img src={`data:image/jpeg;base64,${props.hero.base64}`} alt="Hero Preview" className="w-16 h-16 object-cover border-2 border-black bg-white rotate-[-2deg]" />
+                                        <img src={`data:image/jpeg;base64,${props.hero.base64}`} alt="Hero Preview" className="w-16 h-16 object-cover border-2 border-black bg-white rounded" />
                                         <label className="cursor-pointer comic-btn bg-yellow-400 text-black text-[10px] px-1 py-1 hover:bg-yellow-300 uppercase flex items-center justify-center">
                                             REPLACE
                                             <input type="file" accept="image/*" className="hidden" onChange={(e) => e.target.files?.[0] && props.onHeroUpload(e.target.files[0])} />
                                         </label>
                                      </div>
-                                     <div className="flex-1 flex flex-col gap-1">
-                                         <input 
-                                            type="text" 
-                                            placeholder="Hero Name" 
-                                            className="w-full border-2 border-black p-1 font-comic text-base focus:outline-none"
+                                     <div className="flex-1 flex flex-col gap-2">
+                                         <input
+                                            type="text"
+                                            placeholder="Hero Name"
+                                            className="w-full border-2 border-black p-2 font-comic text-base focus:outline-none rounded"
                                             value={props.hero.name || ''}
                                             onChange={(e) => props.onHeroUpdate({name: e.target.value})}
                                          />
-                                         <textarea 
-                                            placeholder="Description..." 
-                                            className="w-full border-2 border-black p-1 font-comic text-xs h-12 resize-none focus:outline-none leading-tight"
+                                         <textarea
+                                            placeholder="Description..."
+                                            className="w-full border-2 border-black p-2 font-comic text-xs h-16 resize-none focus:outline-none leading-tight rounded"
                                             value={props.hero.description || ''}
                                             onChange={(e) => props.onHeroUpdate({description: e.target.value})}
                                          />
                                      </div>
                                 </div>
                             ) : (
-                                <label className="comic-btn bg-blue-500 text-white text-lg px-3 py-3 block w-full hover:bg-blue-400 cursor-pointer text-center">
-                                    UPLOAD HERO 
+                                <label className="comic-btn bg-blue-500 text-white text-lg px-3 py-3 block w-full hover:bg-blue-400 cursor-pointer text-center rounded">
+                                    UPLOAD HERO
                                     <input type="file" accept="image/*" className="hidden" onChange={(e) => e.target.files?.[0] && props.onHeroUpload(e.target.files[0])} />
                                 </label>
                             )}
                         </div>
 
-                        <div className={`p-3 border-4 border-dashed ${props.friend ? 'border-green-500 bg-green-50' : 'border-purple-300 bg-purple-50'} transition-colors`}>
+                        <div className={`p-3 border-2 border-dashed ${props.friend ? 'border-green-500 bg-green-50' : 'border-purple-200 bg-purple-50'} transition-colors rounded-md`}>
                             <div className="flex justify-between items-center mb-1">
                                 <p className="font-comic text-lg uppercase font-bold text-purple-900">CO-STAR</p>
                                 {savedCharacters.length > 0 && (
-                                    <select onChange={(e) => handleLoadCharacter(e, 'friend')} className="text-xs font-sans border border-black p-1 bg-yellow-100 rounded w-24">
+                                    <select onChange={(e) => handleLoadCharacter(e, 'friend')} className="text-xs font-sans border border-black p-1 bg-yellow-100 rounded w-28">
                                         <option value="">📂 {props.friend ? 'Swap' : 'Load'}...</option>
                                         {sortedCharacters.map(h => (
                                             <option key={h.id} value={h.id}>{h.name}</option>
@@ -323,126 +362,119 @@ export const Setup: React.FC<SetupProps> = (props) => {
                             </div>
 
                             {props.friend ? (
-                                <div className="flex gap-2 items-start mt-1">
+                                <div className="flex gap-3 items-start mt-1">
                                     <div className="flex flex-col gap-2">
-                                        <img src={`data:image/jpeg;base64,${props.friend.base64}`} alt="Co-Star Preview" className="w-16 h-16 object-cover border-2 border-black bg-white rotate-[2deg]" />
+                                        <img src={`data:image/jpeg;base64,${props.friend.base64}`} alt="Co-Star Preview" className="w-16 h-16 object-cover border-2 border-black bg-white rounded" />
                                         <label className="cursor-pointer comic-btn bg-yellow-400 text-black text-[10px] px-1 py-1 hover:bg-yellow-300 uppercase flex items-center justify-center">
                                             REPLACE
                                             <input type="file" accept="image/*" className="hidden" onChange={(e) => e.target.files?.[0] && props.onFriendUpload(e.target.files[0])} />
                                         </label>
                                     </div>
-                                    <div className="flex-1 flex flex-col gap-1">
-                                         <input 
-                                            type="text" 
-                                            placeholder="Co-Star Name" 
-                                            className="w-full border-2 border-black p-1 font-comic text-base focus:outline-none"
+                                    <div className="flex-1 flex flex-col gap-2">
+                                         <input
+                                            type="text"
+                                            placeholder="Co-Star Name"
+                                            className="w-full border-2 border-black p-2 font-comic text-base focus:outline-none rounded"
                                             value={props.friend.name || ''}
                                             onChange={(e) => props.onFriendUpdate({name: e.target.value})}
                                          />
-                                         <textarea 
-                                            placeholder="Description..." 
-                                            className="w-full border-2 border-black p-1 font-comic text-xs h-12 resize-none focus:outline-none leading-tight"
+                                         <textarea
+                                            placeholder="Description..."
+                                            className="w-full border-2 border-black p-2 font-comic text-xs h-16 resize-none focus:outline-none leading-tight rounded"
                                             value={props.friend.description || ''}
                                             onChange={(e) => props.onFriendUpdate({description: e.target.value})}
                                          />
                                      </div>
                                 </div>
                             ) : (
-                                <label className="comic-btn bg-purple-500 text-white text-base px-2 py-2 block w-full hover:bg-purple-400 cursor-pointer text-center">
-                                    UPLOAD CO-STAR 
+                                <label className="comic-btn bg-purple-500 text-white text-base px-2 py-2 block w-full hover:bg-purple-400 cursor-pointer text-center rounded">
+                                    UPLOAD CO-STAR
                                     <input type="file" accept="image/*" className="hidden" onChange={(e) => e.target.files?.[0] && props.onFriendUpload(e.target.files[0])} />
                                 </label>
                             )}
                         </div>
-                    </div>
+                    </SectionCard>
 
-                    {/* COLUMN 2: THE WORLD */}
-                    <div className="flex flex-col gap-2">
-                        <div className="font-comic text-xl text-black border-b-4 border-black mb-1">2. THE WORLD</div>
-                        
-                        <div className="bg-gray-100 p-3 border-4 border-black h-full flex flex-col relative overflow-hidden">
-                             <div className="absolute inset-0 opacity-5 pointer-events-none" style={{backgroundImage: 'radial-gradient(circle, #000 1px, transparent 1px)', backgroundSize: '10px 10px'}}></div>
-
-                             <div className="relative z-10 flex flex-col gap-3 h-full">
-                                <div className="flex justify-between items-center">
-                                    <label className="font-comic text-base font-bold text-gray-800">SELECT WORLD</label>
-                                    <button onClick={() => setShowWorldBuilder(true)} className="text-xs bg-black text-white px-2 py-1 font-bold uppercase hover:bg-gray-800">+ NEW</button>
-                                </div>
-
-                                <select 
-                                    value={state.currentWorld?.id || ""} 
+                    <div className="flex flex-col gap-4">
+                        <SectionCard
+                          title="2. The World"
+                          subtitle="Optional setting, references stay hidden when you collapse."
+                          actions={<button onClick={() => setShowWorldBuilder(true)} className="text-xs bg-black text-white px-2 py-1 font-bold uppercase hover:bg-gray-800">+ NEW</button>}
+                          defaultOpen={false}
+                        >
+                            <div className="flex flex-col gap-3">
+                                <select
+                                    value={state.currentWorld?.id || ""}
                                     onChange={(e) => {
                                         const w = state.availableWorlds.find(w => w.id === e.target.value) || null;
                                         actions.setWorld(w);
                                     }}
-                                    className="w-full font-comic text-lg p-2 border-2 border-black bg-white shadow-[3px_3px_0px_rgba(0,0,0,0.1)] focus:outline-none"
+                                    className="w-full font-comic text-lg p-2 border-2 border-black bg-white shadow-[3px_3px_0px_rgba(0,0,0,0.1)] focus:outline-none rounded"
                                 >
                                     <option value="">(No World Selected)</option>
                                     {state.availableWorlds.map(w => <option key={w.id} value={w.id}>{w.name}</option>)}
                                 </select>
 
                                 {state.currentWorld ? (
-                                    <div className="flex-1 flex flex-col gap-2 animate-in fade-in slide-in-from-bottom-2">
-                                        <div className="bg-white border-2 border-black p-2 flex-1 relative">
+                                    <div className="flex flex-col gap-2">
+                                        <div className="bg-white border-2 border-black p-3 flex-1 rounded">
                                             <p className="font-comic text-xl text-blue-600 border-b-2 border-gray-200 mb-1">{state.currentWorld.name}</p>
-                                            <p className="text-xs text-gray-600 line-clamp-4 leading-tight font-sans">{state.currentWorld.description}</p>
-                                            
+                                            <p className="text-xs text-gray-700 leading-tight font-sans">{state.currentWorld.description}</p>
+
                                             {state.currentWorld.images.length > 0 && (
-                                                <div className="flex gap-1 mt-2 absolute bottom-2 right-2">
+                                                <div className="flex gap-2 mt-2 flex-wrap">
                                                     {state.currentWorld.images.map((img, i) => (
-                                                        <img key={i} src={`data:image/jpeg;base64,${img}`} className="w-8 h-8 object-cover border border-black rounded-full" alt="tiny ref" />
+                                                        <img key={i} src={`data:image/jpeg;base64,${img}`} className="w-10 h-10 object-cover border border-black rounded" alt="tiny ref" />
                                                     ))}
                                                 </div>
                                             )}
                                         </div>
-                                        <button onClick={() => handleDeleteWorld(state.currentWorld!.id, state.currentWorld!.name)} className="text-[10px] text-red-500 underline self-end hover:text-red-700">Delete World</button>
+                                        <button onClick={() => handleDeleteWorld(state.currentWorld!.id, state.currentWorld!.name)} className="text-[12px] text-red-500 underline self-end hover:text-red-700">Delete World</button>
                                     </div>
                                 ) : (
-                                    <div className="flex-1 border-2 border-dashed border-gray-400 flex items-center justify-center text-center p-4">
-                                        <p className="text-gray-400 font-comic text-xl">Select or Create a World to ground your story.</p>
+                                    <div className="flex-1 border-2 border-dashed border-gray-300 flex items-center justify-center text-center p-4 rounded">
+                                        <p className="text-gray-500 font-comic text-lg">Keep it simple or add a custom world when ready.</p>
                                     </div>
                                 )}
                              </div>
-                        </div>
-                    </div>
+                        </SectionCard>
 
-                    {/* COLUMN 3: THE STORY */}
-                    <div className="flex flex-col gap-2">
-                        <div className="font-comic text-xl text-black border-b-4 border-black mb-1">3. THE STORY</div>
-                        
-                        <div className="bg-yellow-50 p-3 border-4 border-black h-full flex flex-col justify-between">
-                            <div>
-                                <div className="mb-2">
+                        <SectionCard
+                          title="3. The Story"
+                          subtitle="Pick a vibe and opening."
+                        >
+                            <div className="bg-yellow-50 p-3 border-2 border-black flex flex-col gap-3 rounded">
+                                <div className="mb-1">
                                     <p className="font-comic text-base mb-1 font-bold text-gray-800">GENRE</p>
-                                    <select value={props.config.genre} onChange={(e) => props.onConfigChange({ genre: e.target.value })} className="w-full font-comic text-lg p-1 border-2 border-black uppercase bg-white text-black cursor-pointer shadow-[3px_3px_0px_rgba(0,0,0,0.2)] focus:outline-none transition-all">
+                                    <select value={props.config.genre} onChange={(e) => props.onConfigChange({ genre: e.target.value })} className="w-full font-comic text-lg p-2 border-2 border-black uppercase bg-white text-black cursor-pointer shadow-[3px_3px_0px_rgba(0,0,0,0.2)] focus:outline-none transition-all rounded">
                                         {GENRES.map(g => <option key={g} value={g} className="text-black">{g}</option>)}
                                     </select>
                                 </div>
 
-                                <div className="mb-2">
+                                <div className="mb-1">
                                     <p className="font-comic text-base mb-1 font-bold text-gray-800">LANGUAGE</p>
-                                    <select value={props.config.language} onChange={(e) => props.onConfigChange({ language: e.target.value })} className="w-full font-comic text-lg p-1 border-2 border-black uppercase bg-white text-black cursor-pointer shadow-[3px_3px_0px_rgba(0,0,0,0.2)]">
+                                    <select value={props.config.language} onChange={(e) => props.onConfigChange({ language: e.target.value })} className="w-full font-comic text-lg p-2 border-2 border-black uppercase bg-white text-black cursor-pointer shadow-[3px_3px_0px_rgba(0,0,0,0.2)] rounded">
                                         {LANGUAGES.map(l => <option key={l.code} value={l.code} className="text-black">{l.name}</option>)}
                                     </select>
                                 </div>
 
-                                <div className="mb-2">
+                                <div className="mb-1">
                                     <p className="font-comic text-base mb-1 font-bold text-gray-800">OPENING SCENE / PROMPT</p>
-                                    <textarea 
-                                        value={props.config.openingPrompt} 
-                                        onChange={(e) => props.onConfigChange({ openingPrompt: e.target.value })} 
-                                        placeholder="E.g., The hero wakes up in a dumpster behind a neon-lit sushi bar..." 
-                                        className="w-full p-2 border-2 border-black font-comic text-lg h-24 resize-none shadow-[3px_3px_0px_rgba(0,0,0,0.2)] focus:outline-none leading-tight" 
+                                    <textarea
+                                        value={props.config.openingPrompt}
+                                        onChange={(e) => props.onConfigChange({ openingPrompt: e.target.value })}
+                                        placeholder="E.g., The hero wakes up in a dumpster behind a neon-lit sushi bar..."
+                                        className="w-full p-2 border-2 border-black font-comic text-lg h-24 resize-none shadow-[3px_3px_0px_rgba(0,0,0,0.2)] focus:outline-none leading-tight rounded"
                                     />
                                     <p className="text-[10px] text-gray-500 mt-1">Be specific! This sets the initial direction.</p>
                                 </div>
+
+                                <label className="flex items-center gap-2 font-comic text-base cursor-pointer text-black mt-1 p-2 hover:bg-yellow-100 rounded border-2 border-transparent hover:border-yellow-300 transition-colors">
+                                    <input type="checkbox" checked={props.config.richMode} onChange={(e) => props.onConfigChange({ richMode: e.target.checked })} className="w-4 h-4 accent-black" />
+                                    <span className="text-black">NOVEL MODE (Rich Dialogue)</span>
+                                </label>
                             </div>
-                            
-                            <label className="flex items-center gap-2 font-comic text-base cursor-pointer text-black mt-1 p-1 hover:bg-yellow-100 rounded border-2 border-transparent hover:border-yellow-300 transition-colors">
-                                <input type="checkbox" checked={props.config.richMode} onChange={(e) => props.onConfigChange({ richMode: e.target.checked })} className="w-4 h-4 accent-black" />
-                                <span className="text-black">NOVEL MODE (Rich Dialogue)</span>
-                            </label>
-                        </div>
+                        </SectionCard>
                     </div>
                 </div>
 
