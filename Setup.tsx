@@ -119,6 +119,7 @@ export const Setup: React.FC<SetupProps> = (props) => {
     const [showWorldBuilder, setShowWorldBuilder] = useState(false);
     const [isOnline, setIsOnline] = useState(navigator.onLine);
     const { presets, getPresetById } = useModelPresets();
+    const [libraryRestored, setLibraryRestored] = useState(false);
 
     const refreshLibrary = React.useCallback(() => {
         StorageService.getCharacters()
@@ -131,20 +132,28 @@ export const Setup: React.FC<SetupProps> = (props) => {
 
     useEffect(() => {
         StorageService.restoreLocalLibrary()
-            .then((restored) => {
+            .then(async (restored) => {
                 if (restored) {
-                    actions.addNotification('success', 'Reconnected to your local library', 2500);
                     refreshLibrary();
-                    loadWorlds().catch((error: Error) => {
+                    try {
+                        await loadWorlds();
+                        actions.addNotification('success', 'Reconnected to your local library', 2500);
+                    } catch (error) {
                         console.error('Failed to load worlds after restoring library:', error);
                         actions.addNotification('warning', 'Library reconnected but worlds could not be loaded');
-                    });
+                    }
                 }
+                setLibraryRestored(true);
             })
-            .catch((error) => console.warn('Library restore attempt failed', error));
+            .catch((error) => {
+                console.warn('Library restore attempt failed', error);
+                setLibraryRestored(true);
+            });
     }, [actions, loadWorlds, refreshLibrary]);
 
     useEffect(() => {
+        if (!libraryRestored) return;
+
         refreshLibrary();
         loadWorlds().catch((error: Error) => {
             console.error('Failed to load worlds:', error);
@@ -160,7 +169,7 @@ export const Setup: React.FC<SetupProps> = (props) => {
             window.removeEventListener('online', handleOnline);
             window.removeEventListener('offline', handleOffline);
         };
-    }, [props.show, loadWorlds, addNotification, refreshLibrary]);
+    }, [props.show, loadWorlds, addNotification, refreshLibrary, libraryRestored]);
 
     useEffect(() => {
         if (props.hero?.name && props.hero.name.length > 2 && props.hero.base64) {

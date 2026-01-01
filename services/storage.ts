@@ -48,7 +48,7 @@ const initDB = () => {
         if (oldVersion < 3 && !db.objectStoreNames.contains(STORE_PRESETS)) {
           db.createObjectStore(STORE_PRESETS, { keyPath: 'id' });
         }
-        if (!db.objectStoreNames.contains(STORE_CONNECTIONS)) {
+        if (oldVersion < 4 && !db.objectStoreNames.contains(STORE_CONNECTIONS)) {
           db.createObjectStore(STORE_CONNECTIONS, { keyPath: 'key' });
         }
       },
@@ -80,10 +80,15 @@ const writeToFile = async (dirHandle: any, filename: string, content: any) => {
 };
 
 const hasPermission = async (handle: FileSystemDirectoryHandle) => {
-    const permission = await handle.queryPermission({ mode: 'readwrite' });
-    if (permission === 'granted') return true;
-    if (permission === 'denied') return false;
-    return (await handle.requestPermission({ mode: 'readwrite' })) === 'granted';
+    try {
+        const permission = await handle.queryPermission({ mode: 'readwrite' });
+        if (permission === 'granted') return true;
+        if (permission === 'denied') return false;
+        return (await handle.requestPermission({ mode: 'readwrite' })) === 'granted';
+    } catch (e) {
+        console.error("Failed to check or request file system permissions", e);
+        return false;
+    }
 };
 
 const readFiles = async <T>(dirHandle: any): Promise<T[]> => {

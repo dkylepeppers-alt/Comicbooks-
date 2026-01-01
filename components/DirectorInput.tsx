@@ -34,10 +34,10 @@ export const DirectorInput: React.FC<DirectorInputProps> = ({ onContinue, isGene
     const branchOptions = useMemo(() => {
         const location = state.currentWorld?.name || setting;
         const hook = lastChoice ? `After choosing "${lastChoice}"` : 'With tensions rising';
-        const sceneDetails = lastScene || `${heroName} and ${friendName} navigate ${location}`;
+        const sceneDetails = lastScene ? lastScene.toLowerCase() : `${heroName} and ${friendName} navigate ${location}`;
 
         return [
-            `${hook}, ${heroName} charges back into ${sceneDetails.toLowerCase()}, forcing the villain to reveal their real objective.`,
+            `${hook}, ${heroName} charges back into ${sceneDetails}, forcing the villain to reveal their real objective.`,
             `${friendName} takes the spotlight and flips the recent events (${lastCaption || 'the last twist'}) into a clever ambush that protects civilians.`,
             `A sudden shift hits ${location}: the environment mutates around them, opening a new path but splitting ${heroName} and ${friendName} apart.`
         ];
