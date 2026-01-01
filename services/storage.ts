@@ -20,19 +20,24 @@ interface HeroesDB extends DBSchema {
     key: string;
     value: ModelPreset;
   };
+  connections: {
+    key: string;
+    value: { handle: FileSystemDirectoryHandle; timestamp: number };
+  };
 }
 
 const DB_NAME = 'infinite-heroes-db';
 const STORE_HEROES = 'heroes';
 const STORE_WORLDS = 'worlds';
 const STORE_PRESETS = 'presets';
+const STORE_CONNECTIONS = 'connections';
 
 let dbPromise: Promise<IDBPDatabase<HeroesDB>>;
 let rootHandle: any | null = null; // FileSystemDirectoryHandle
 
 const initDB = () => {
   if (!dbPromise) {
-    dbPromise = openDB<HeroesDB>(DB_NAME, 3, {
+    dbPromise = openDB<HeroesDB>(DB_NAME, 4, {
       upgrade(db, oldVersion) {
         if (!db.objectStoreNames.contains(STORE_HEROES)) {
           db.createObjectStore(STORE_HEROES, { keyPath: 'id' });
@@ -42,6 +47,9 @@ const initDB = () => {
         }
         if (oldVersion < 3 && !db.objectStoreNames.contains(STORE_PRESETS)) {
           db.createObjectStore(STORE_PRESETS, { keyPath: 'id' });
+        }
+        if (oldVersion < 4 && !db.objectStoreNames.contains(STORE_CONNECTIONS)) {
+          db.createObjectStore(STORE_CONNECTIONS, { keyPath: 'key' });
         }
       },
     });
@@ -68,6 +76,18 @@ const writeToFile = async (dirHandle: any, filename: string, content: any) => {
         await writable.close();
     } catch (e) {
         console.error("FS Write Error", e);
+    }
+};
+
+const hasPermission = async (handle: FileSystemDirectoryHandle) => {
+    try {
+        const permission = await handle.queryPermission({ mode: 'readwrite' });
+        if (permission === 'granted') return true;
+        if (permission === 'denied') return false;
+        return (await handle.requestPermission({ mode: 'readwrite' })) === 'granted';
+    } catch (e) {
+        console.error("Failed to check or request file system permissions", e);
+        return false;
     }
 };
 
@@ -106,6 +126,10 @@ export const StorageService = {
         await getSubDir('characters');
         await getSubDir('worlds');
         await getSubDir('presets');
+        const db = await initDB();
+        if (rootHandle) {
+            await db.put(STORE_CONNECTIONS, { key: 'library-root', handle: rootHandle, timestamp: Date.now() });
+        }
         return true;
     } catch (e) {
         console.log("User cancelled folder picker or error", e);
@@ -114,6 +138,29 @@ export const StorageService = {
   },
 
   isLocalConnected: () => !!rootHandle,
+
+  async restoreLocalLibrary(): Promise<boolean> {
+    try {
+        const db = await initDB();
+        const saved = await db.get(STORE_CONNECTIONS, 'library-root');
+        if (saved?.handle && await hasPermission(saved.handle)) {
+            rootHandle = saved.handle;
+            await getSubDir('characters');
+            await getSubDir('worlds');
+            await getSubDir('presets');
+            return true;
+        }
+    } catch (e) {
+        console.warn('Unable to restore library connection', e);
+    }
+    return false;
+  },
+
+  async disconnectLibrary(): Promise<void> {
+    const db = await initDB();
+    await db.delete(STORE_CONNECTIONS, 'library-root');
+    rootHandle = null;
+  },
 
   // --- CHARACTERS ---
   async saveCharacter(persona: Persona): Promise<void> {

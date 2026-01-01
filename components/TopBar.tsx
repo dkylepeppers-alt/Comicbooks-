@@ -31,10 +31,18 @@ export const TopBar: React.FC = () => {
     ? `${state.loadingProgress.current}/${state.loadingProgress.total}`
     : 'Idle';
 
-  const handleHome = () => {
-    if (state.status !== 'setup') {
-      actions.reset();
-      actions.addNotification('info', 'Returned to setup to start a fresh book');
+  const handleNewBook = () => {
+    const wasInSetup = state.status === 'setup';
+    const canReset = wasInSetup
+      ? true
+      : window.confirm('Start a brand new book? Ongoing generation will be cancelled.');
+
+    if (!canReset) return;
+
+    actions.startNewBook();
+
+    if (!wasInSetup) {
+      actions.addNotification('info', 'Starting a fresh book — set up your next adventure!');
     }
   };
 
@@ -77,7 +85,7 @@ export const TopBar: React.FC = () => {
 
         {!isCollapsed && (
           <nav className="hidden md:flex items-center gap-2">
-            <button className="comic-btn bg-white text-black text-sm px-3 py-2" onClick={handleHome}>Home</button>
+            <button className="comic-btn bg-white text-black text-sm px-3 py-2" onClick={handleNewBook}>New Book</button>
             <button className="comic-btn bg-white text-black text-sm px-3 py-2" onClick={handleLibrary}>Library</button>
             <button className="comic-btn bg-white text-black text-sm px-3 py-2" onClick={handleExportHint}>Export</button>
           </nav>
