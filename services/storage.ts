@@ -86,7 +86,7 @@ const hasPermission = async (handle: FileSystemDirectoryHandle) => {
         if (permission === 'denied') return false;
         return (await handle.requestPermission({ mode: 'readwrite' })) === 'granted';
     } catch (e) {
-        console.error("FS Permission Error", e);
+        console.error("Failed to check or request file system permissions", e);
         return false;
     }
 };
