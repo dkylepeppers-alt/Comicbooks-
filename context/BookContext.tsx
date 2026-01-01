@@ -25,6 +25,7 @@ interface BookContextType {
     handleChoice: (pageIndex: number, choice: string) => void;
     setSheetIndex: (idx: number) => void;
     reset: () => void;
+    abortGeneration: () => void;
     clearError: () => void;
     addNotification: (type: NotificationType, message: string, duration?: number) => void;
     removeNotification: (id: string) => void;

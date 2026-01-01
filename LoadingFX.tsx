@@ -10,7 +10,7 @@ import { useBook } from './context/BookContext';
 const LOADING_FX = ["POW!", "BAM!", "ZAP!", "KRAK!", "SKREEE!", "WHOOSH!", "THWIP!", "BOOM!"];
 
 export const LoadingFX: React.FC = () => {
-    const { state } = useBook();
+    const { state, actions } = useBook();
     const [particles, setParticles] = useState<{id: number, text: string, x: string, y: string, rot: number, color: string}[]>([]);
     const [elapsedTime, setElapsedTime] = useState(0);
 
@@ -137,6 +137,14 @@ export const LoadingFX: React.FC = () => {
                         <span className="text-gray-500 italic">AI is thinking...</span>
                     </div>
                 </div>
+
+                <button
+                  type="button"
+                  onClick={(e) => { e.stopPropagation(); actions.abortGeneration(); }}
+                  className="comic-btn bg-red-500 text-white px-4 py-2 text-sm font-bold hover:bg-red-400"
+                >
+                  Abort Generation
+                </button>
             </div>
         </div>
     );

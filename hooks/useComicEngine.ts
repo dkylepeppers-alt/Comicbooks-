@@ -14,6 +14,7 @@ import {
   World,
   Notification,
   NotificationType,
+  EngineStatus,
   GENRES,
   TONES,
   LANGUAGES,
@@ -71,11 +72,19 @@ function reducer(state: ComicState, action: ComicAction): ComicState {
       return { ...state, status: 'generating', error: null };
     case 'TRANSITION_COMPLETE':
       return { ...state, status: 'reading', loadingProgress: null };
+    case 'CANCEL_GENERATION': {
+      return {
+        ...state,
+        status: action.payload?.status || state.status,
+        loadingProgress: null,
+        error: null,
+      };
+    }
     case 'ADD_FACES': {
       const existingIds = new Set(state.comicFaces.map(f => f.id));
       const uniqueNew = action.payload.filter(f => !existingIds.has(f.id));
-      return { 
-        ...state, 
+      return {
+        ...state,
         comicFaces: [...state.comicFaces, ...uniqueNew].sort((a, b) => (a.pageIndex || 0) - (b.pageIndex || 0)) 
       };
     }
@@ -356,14 +365,28 @@ export const useComicEngine = () => {
     } catch (e) {
       console.error("Batch Generation Error:", e);
       const msg = String(e);
+
+      // Fail any pages that were in-flight so panels don't stay in a loading limbo
+      pagesToGen.forEach(pageNum => {
+        const faceId = `page-${pageNum}`;
+        dispatch({ type: 'UPDATE_FACE', payload: { id: faceId, updates: { isLoading: false } } });
+      });
+
       if (
-          msg.includes('Requested entity was not found') || 
-          msg.includes('API_KEY_INVALID') || 
-          msg.includes('403') || 
+          msg.includes('Requested entity was not found') ||
+          msg.includes('API_KEY_INVALID') ||
+          msg.includes('403') ||
           msg.includes('PERMISSION_DENIED')
       ) {
          dispatch({ type: 'SET_ERROR', payload: "API_KEY_ERROR" });
       }
+
+      dispatch({ type: 'ADD_NOTIFICATION', payload: {
+        id: `notif-${Date.now()}-${Math.random()}`,
+        type: 'error',
+        message: 'Something went wrong while generating pages. Please try again.',
+        timestamp: Date.now(),
+      }});
     } finally {
       pagesToGen.forEach(p => generatingPagesRef.current.delete(p));
 
@@ -494,6 +517,32 @@ export const useComicEngine = () => {
       dispatch({ type: 'RESET' });
   }, []);
 
+  const abortGeneration = useCallback(() => {
+    abortAllOperations();
+    clearAllTimeouts();
+    activeControllersRef.current.clear();
+    generatingPagesRef.current.clear();
+
+    state.comicFaces
+      .filter(face => face.isLoading)
+      .forEach(face => {
+        dispatch({ type: 'UPDATE_FACE', payload: { id: face.id, updates: { isLoading: false } } });
+      });
+
+    const fallbackStatus: EngineStatus = state.comicFaces.length > 0 ? 'reading' : 'setup';
+    dispatch({ type: 'CANCEL_GENERATION', payload: { status: fallbackStatus } });
+
+    dispatch({
+      type: 'ADD_NOTIFICATION',
+      payload: {
+        id: `notif-${Date.now()}-${Math.random()}`,
+        type: 'info',
+        message: 'Generation cancelled by user.',
+        timestamp: Date.now(),
+      },
+    });
+  }, [abortAllOperations, clearAllTimeouts, state.comicFaces]);
+
   // Notification actions
   const addNotification = useCallback((type: NotificationType, message: string, duration: number = 5000) => {
     const notification: Notification = {
@@ -531,6 +580,7 @@ export const useComicEngine = () => {
       handleChoice,
       setSheetIndex,
       reset,
+      abortGeneration,
       clearError: () => dispatch({ type: 'SET_ERROR', payload: '' }),
       addNotification,
       removeNotification,

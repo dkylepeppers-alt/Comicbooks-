@@ -95,24 +95,25 @@ const Footer = ({ isInstallable, isInstalled, onInstall, onConnectStorage }: { i
 export const Setup: React.FC<SetupProps> = (props) => {
     const { isInstallable, isInstalled, promptInstall } = usePWA();
     const { state, actions } = useBook();
+    const { addNotification, loadWorlds } = actions;
     const [savedCharacters, setSavedCharacters] = useState<(Persona & {id:string})[]>([]);
     const [showWorldBuilder, setShowWorldBuilder] = useState(false);
     const [isOnline, setIsOnline] = useState(navigator.onLine);
-    
-    const refreshLibrary = () => {
+
+    const refreshLibrary = React.useCallback(() => {
         StorageService.getCharacters()
             .then(setSavedCharacters)
             .catch(error => {
                 console.error('Failed to load character library:', error);
-                actions.addNotification('error', 'Failed to load saved characters. Please try reconnecting your library.');
+                addNotification('error', 'Failed to load saved characters. Please try reconnecting your library.');
             });
-    };
+    }, [addNotification]);
 
     useEffect(() => {
         refreshLibrary();
-        actions.loadWorlds().catch((error: Error) => {
+        loadWorlds().catch((error: Error) => {
             console.error('Failed to load worlds:', error);
-            actions.addNotification('error', 'Failed to load saved worlds. Please try reconnecting your library.');
+            addNotification('error', 'Failed to load saved worlds. Please try reconnecting your library.');
         });
 
         const handleOnline = () => setIsOnline(true);
@@ -124,7 +125,7 @@ export const Setup: React.FC<SetupProps> = (props) => {
             window.removeEventListener('online', handleOnline);
             window.removeEventListener('offline', handleOffline);
         };
-    }, [props.show, actions]);
+    }, [props.show, loadWorlds, addNotification, refreshLibrary]);
 
     useEffect(() => {
         if (props.hero?.name && props.hero.name.length > 2 && props.hero.base64) {
@@ -254,6 +255,13 @@ export const Setup: React.FC<SetupProps> = (props) => {
                         <div className="w-full h-4 border-2 border-black bg-white">
                             <div className="h-full bg-yellow-400 transition-all duration-300" style={{width: `${(state.loadingProgress.current / state.loadingProgress.total) * 100}%`}}></div>
                         </div>
+                        <button
+                          type="button"
+                          onClick={(e) => { e.preventDefault(); actions.abortGeneration(); }}
+                          className="comic-btn bg-red-500 text-white text-xs px-3 py-1 mt-2 hover:bg-red-400"
+                        >
+                          Abort Generation
+                        </button>
                     </div>
                 )}
             </div>
