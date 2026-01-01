@@ -87,7 +87,7 @@ export const SettingsPanel: React.FC = () => {
               </button>
               <button
                 className="comic-btn text-sm py-2 bg-white text-black col-span-2"
-                onClick={() => updateDraft({ model: draft.model === 'gemini-2.0-flash' ? 'gemini-2.0-pro' : 'gemini-2.0-flash' })}
+                onClick={() => updateDraft({ model: draft.model === 'gemini-3-flash-preview' ? 'gemini-3-pro-preview' : 'gemini-3-flash-preview' })}
               >
                 ⚙️ Model: {draft.model}
               </button>
