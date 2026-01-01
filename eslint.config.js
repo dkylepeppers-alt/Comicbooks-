@@ -127,6 +127,7 @@ export default tseslint.config(
       '@typescript-eslint/require-await': 'warn',
       '@typescript-eslint/await-thenable': 'warn',
       '@typescript-eslint/no-redundant-type-constituents': 'warn',
+      '@typescript-eslint/no-unnecessary-type-assertion': 'warn',
       '@typescript-eslint/no-unused-vars': [
         'warn',
         {

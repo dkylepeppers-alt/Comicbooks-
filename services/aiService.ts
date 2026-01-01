@@ -272,7 +272,7 @@ OUTPUT STRICT JSON ONLY (No markdown formatting):
         if (isDecisionPage && !isFinalPage && (!parsed.choices || parsed.choices.length < 2)) parsed.choices = ["Option A", "Option B"];
         if (!['hero', 'friend', 'other'].includes(parsed.focus_char)) parsed.focus_char = 'hero';
 
-        return parsed;
+        return parsed as Beat;
     } catch (e) {
         console.error("Beat generation failed", e);
         throw e;

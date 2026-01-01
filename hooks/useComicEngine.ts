@@ -505,7 +505,7 @@ export const useComicEngine = () => {
       if (currentMax < TOTAL_PAGES) {
           const nextPage = currentMax + 1;
           // Generate small batch (2 pages) to keep control tight
-          generateBatch(nextPage, BATCH_SIZE, state.comicFaces, state.hero!, state.friend, state.config, state.currentWorld, userGuidance);
+          generateBatch(nextPage, BATCH_SIZE, state.comicFaces, state.hero!, state.friend!, state.config, state.currentWorld, userGuidance);
           // Auto flip to next sheet (assuming user is on the Director page which is technically +1 from current max render)
           dispatch({ type: 'SET_SHEET_INDEX', payload: state.currentSheetIndex + 1 });
       }
@@ -516,7 +516,7 @@ export const useComicEngine = () => {
     // For decisions, we treat the choice AS the guidance for the next batch
     const currentMax = Math.max(...state.comicFaces.map((f: ComicFace) => f.pageIndex || 0));
     if (currentMax + 1 <= TOTAL_PAGES) {
-      generateBatch(currentMax + 1, BATCH_SIZE, state.comicFaces, state.hero!, state.friend, state.config, state.currentWorld, `User chose: ${choice}`);
+      generateBatch(currentMax + 1, BATCH_SIZE, state.comicFaces, state.hero!, state.friend!, state.config, state.currentWorld, `User chose: ${choice}`);
       dispatch({ type: 'SET_SHEET_INDEX', payload: state.currentSheetIndex + 1 });
     }
   }, [state.comicFaces, state.hero, state.friend, state.config, state.currentWorld, generateBatch, state.currentSheetIndex]);
