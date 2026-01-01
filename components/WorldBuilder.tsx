@@ -6,6 +6,7 @@
 
 import React, { useState } from 'react';
 import { World, Persona, NotificationType } from '../types';
+import { compressImage, estimateBase64Size, formatBytes } from '../utils/imageCompression';
 
 interface WorldBuilderProps {
     existingWorld?: World | null;
@@ -21,7 +22,7 @@ export const WorldBuilder: React.FC<WorldBuilderProps> = ({ existingWorld, saved
     const [images, setImages] = useState<string[]>(existingWorld?.images || []);
     const [linkedPersonaIds, setLinkedPersonaIds] = useState<string[]>(existingWorld?.linkedPersonaIds || []);
 
-    const handleImageUpload = (file: File) => {
+    const handleImageUpload = async (file: File) => {
         if (images.length >= 3) {
             addNotification('warning', 'Maximum 3 reference images allowed');
             return;
@@ -40,29 +41,20 @@ export const WorldBuilder: React.FC<WorldBuilderProps> = ({ existingWorld, saved
             return;
         }
 
-        const reader = new FileReader();
+        try {
+            // Compress image for better performance (world images can be slightly smaller)
+            const base64 = await compressImage(file, 800, 800, 0.80);
 
-        reader.onload = () => {
-            try {
-                const result = reader.result as string;
-                const base64 = result.split(',')[1] ?? '';
-
-                if (!base64) {
-                    throw new Error('Failed to process image data');
-                }
-
-                setImages(prev => [...prev, base64]);
-                addNotification('success', 'World reference image added!', 2000);
-            } catch (error) {
-                addNotification('error', `Error processing image: ${error instanceof Error ? error.message : 'Unknown error'}`);
+            if (!base64) {
+                throw new Error('Failed to process image data');
             }
-        };
 
-        reader.onerror = () => {
-            addNotification('error', 'Failed to read the image file. Please try again.');
-        };
-
-        reader.readAsDataURL(file);
+            const compressedSize = estimateBase64Size(base64);
+            setImages(prev => [...prev, base64]);
+            addNotification('success', `World image added! (${formatBytes(compressedSize)})`, 2000);
+        } catch (error) {
+            addNotification('error', `Error processing image: ${error instanceof Error ? error.message : 'Unknown error'}`);
+        }
     };
 
     const removeImage = (index: number) => {

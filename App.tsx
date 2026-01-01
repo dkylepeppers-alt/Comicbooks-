@@ -16,6 +16,7 @@ import { ModelPresetProvider } from './context/ModelPresetContext';
 import { SettingsProvider } from './context/SettingsContext';
 import { Persona } from './types';
 import { useApiKey } from './useApiKey';
+import { compressImage, estimateBase64Size, formatBytes } from './utils/imageCompression';
 
 // Lazy load heavy components for better code splitting
 const Book = lazy(() => import('./Book').then(m => ({ default: m.Book })));
@@ -69,35 +70,26 @@ const AppContent: React.FC = () => {
       return;
     }
 
-    const reader = new FileReader();
+    try {
+      // Compress image for better performance
+      const base64 = await compressImage(file, 1024, 1024, 0.85);
+      
+      if (!base64) {
+        throw new Error('Failed to process image data');
+      }
 
-    reader.onload = () => {
-        try {
-          const result = reader.result as string;
-          const base64 = result.split(',')[1] ?? '';
+      const compressedSize = estimateBase64Size(base64);
+      const existing: Partial<Persona> = state.hero || {};
+      actions.setHero({
+          base64,
+          name: existing.name || "",
+          description: existing.description || ""
+      });
 
-          if (!base64) {
-            throw new Error('Failed to process image data');
-          }
-
-          const existing: Partial<Persona> = state.hero || {};
-          actions.setHero({
-              base64,
-              name: existing.name || "",
-              description: existing.description || ""
-          });
-
-          actions.addNotification('success', 'Hero image uploaded successfully!', 3000);
-        } catch (error) {
-          actions.addNotification('error', `Error processing image: ${error instanceof Error ? error.message : 'Unknown error'}`);
-        }
-    };
-
-    reader.onerror = () => {
-      actions.addNotification('error', 'Failed to read the image file. Please try again.');
-    };
-
-    reader.readAsDataURL(file);
+      actions.addNotification('success', `Hero image uploaded! (${formatBytes(compressedSize)})`, 3000);
+    } catch (error) {
+      actions.addNotification('error', `Error processing image: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
   };
 
   const handleFriendUpload = async (file: File) => {
@@ -114,35 +106,26 @@ const AppContent: React.FC = () => {
       return;
     }
 
-    const reader = new FileReader();
+    try {
+      // Compress image for better performance
+      const base64 = await compressImage(file, 1024, 1024, 0.85);
+      
+      if (!base64) {
+        throw new Error('Failed to process image data');
+      }
 
-    reader.onload = () => {
-        try {
-          const result = reader.result as string;
-          const base64 = result.split(',')[1] ?? '';
+      const compressedSize = estimateBase64Size(base64);
+      const existing: Partial<Persona> = state.friend || {};
+      actions.setFriend({
+          base64,
+          name: existing.name || "",
+          description: existing.description || ""
+      });
 
-          if (!base64) {
-            throw new Error('Failed to process image data');
-          }
-
-          const existing: Partial<Persona> = state.friend || {};
-          actions.setFriend({
-              base64,
-              name: existing.name || "",
-              description: existing.description || ""
-          });
-
-          actions.addNotification('success', 'Sidekick image uploaded successfully!', 3000);
-        } catch (error) {
-          actions.addNotification('error', `Error processing image: ${error instanceof Error ? error.message : 'Unknown error'}`);
-        }
-    };
-
-    reader.onerror = () => {
-      actions.addNotification('error', 'Failed to read the image file. Please try again.');
-    };
-
-    reader.readAsDataURL(file);
+      actions.addNotification('success', `Sidekick image uploaded! (${formatBytes(compressedSize)})`, 3000);
+    } catch (error) {
+      actions.addNotification('error', `Error processing image: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
   };
 
   return (
