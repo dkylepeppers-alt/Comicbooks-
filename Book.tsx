@@ -57,6 +57,11 @@ export const Book: React.FC = () => {
         }
     }, [actions, pageMap, state.comicFaces, state.currentSheetIndex, state.status]);
 
+    const handleCornerClick = useCallback((event: React.MouseEvent, sheetIndex: number) => {
+        event.stopPropagation();
+        handleSheetClick(sheetIndex);
+    }, [handleSheetClick]);
+
     // Construct Sheets
     const sheetsToRender = useMemo(() => {
         const sheets: { front?: typeof state.comicFaces[number]; back?: typeof state.comicFaces[number] }[] = [];
@@ -123,14 +128,22 @@ export const Book: React.FC = () => {
               const isGenerating = state.loadingProgress !== null || state.comicFaces.some(face => face.isLoading);
 
               return (
-                  <div key={i} className={`paper ${i < state.currentSheetIndex ? 'flipped' : ''}`} style={{ zIndex: i < state.currentSheetIndex ? i : sheetsToRender.sheets.length - i }}
-                       onClick={() => handleSheetClick(i)}>
+                  <div key={i} className={`paper ${i < state.currentSheetIndex ? 'flipped' : ''}`} style={{ zIndex: i < state.currentSheetIndex ? i : sheetsToRender.sheets.length - i }}>
                       <div className="front">
                           {showDirectorFront ? (
                               <DirectorInput onContinue={actions.continueStory} isGenerating={isGenerating} />
                           ) : (
                               <Panel face={sheet.front} allFaces={state.comicFaces} onOpenBook={() => actions.setSheetIndex(1)} onDownload={downloadPDF} />
                           )}
+                          <button
+                              type="button"
+                              className="page-turn-handle page-turn-handle-front"
+                              aria-label="Turn page"
+                              onClick={(event) => handleCornerClick(event, i)}
+                          >
+                              <span className="page-turn-icon">↷</span>
+                              <span className="page-turn-text">Turn</span>
+                          </button>
                       </div>
                       <div className="back">
                            {showDirectorBack ? (
@@ -138,6 +151,15 @@ export const Book: React.FC = () => {
                           ) : (
                               <Panel face={sheet.back} allFaces={state.comicFaces} onOpenBook={() => actions.setSheetIndex(1)} onDownload={downloadPDF} />
                           )}
+                          <button
+                              type="button"
+                              className="page-turn-handle page-turn-handle-back"
+                              aria-label="Turn page"
+                              onClick={(event) => handleCornerClick(event, i)}
+                          >
+                              <span className="page-turn-icon">↶</span>
+                              <span className="page-turn-text">Turn</span>
+                          </button>
                       </div>
                   </div>
               );

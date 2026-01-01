@@ -92,7 +92,6 @@
         transform-origin: left center;
         transform-style: preserve-3d;
         transition: transform 0.8s cubic-bezier(0.645, 0.045, 0.355, 1.000);
-        cursor: pointer;
       }
 
       .paper.flipped {
@@ -153,10 +152,57 @@
         width: 100%;
         height: 100%;
         /* CRITICAL: contain ensures NO clipping for internal pages so text isn't lost */
-        object-fit: contain; 
+        object-fit: contain;
         display: block;
         pointer-events: none;
-        background-color: #fff; 
+        background-color: #fff;
+      }
+
+      .page-turn-handle {
+        position: absolute;
+        bottom: 12px;
+        right: 12px;
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        padding: 10px 12px;
+        background: radial-gradient(circle at 30% 30%, #fff 0%, #f3f3f3 55%, #e8e8e8 100%);
+        border: 2px solid #000;
+        border-radius: 12px 4px 10px 10px;
+        box-shadow: 4px 4px 0px rgba(0,0,0,0.6);
+        font-family: 'Bangers', cursive;
+        letter-spacing: 1px;
+        color: #0a0a0a;
+        text-transform: uppercase;
+        cursor: pointer;
+        transform: translateZ(30px);
+        transition: transform 0.1s ease, box-shadow 0.1s ease;
+        z-index: 35;
+      }
+
+      .page-turn-handle:hover {
+        transform: translateZ(30px) translate(-2px, -2px);
+        box-shadow: 6px 6px 0px rgba(0,0,0,0.65);
+      }
+
+      .page-turn-handle:active {
+        transform: translateZ(30px) translate(3px, 3px);
+        box-shadow: 2px 2px 0px rgba(0,0,0,0.65);
+      }
+
+      .page-turn-handle-back {
+        right: auto;
+        left: 12px;
+        border-radius: 4px 12px 10px 10px;
+      }
+
+      .page-turn-icon {
+        font-size: 18px;
+      }
+
+      .page-turn-text {
+        font-size: 12px;
+        letter-spacing: 1.5px;
       }
 
       /* --- SPECIAL COVER STYLING --- */
