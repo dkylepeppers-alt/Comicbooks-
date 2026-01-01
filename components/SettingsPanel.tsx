@@ -7,6 +7,7 @@ import React from 'react';
 import { useBook } from '../context/BookContext';
 import { useModelPresets } from '../context/ModelPresetContext';
 import { useSettings } from '../context/SettingsContext';
+import { GoogleGenAI } from '@google/genai';
 
 const Section: React.FC<{ title: string; children: React.ReactNode; description?: string }>
   = ({ title, children, description }) => (
@@ -46,6 +47,11 @@ export const SettingsPanel: React.FC = () => {
   const [selectedPresetId, setSelectedPresetId] = React.useState<string>(state.config.modelPresetId || presets[0]?.id || '');
   const [promptDraft, setPromptDraft] = React.useState('');
   const [modelDraft, setModelDraft] = React.useState('');
+  
+  // API Key state
+  const [apiKeyInput, setApiKeyInput] = React.useState('');
+  const [isTestingKey, setIsTestingKey] = React.useState(false);
+  const [testResult, setTestResult] = React.useState<{ type: 'success' | 'error', message: string } | null>(null);
 
   React.useEffect(() => {
     const preset = getPresetById(state.config.modelPresetId) || presets[0];
@@ -55,6 +61,14 @@ export const SettingsPanel: React.FC = () => {
       setModelDraft(preset.model);
     }
   }, [getPresetById, presets, state.config.modelPresetId]);
+
+  // Load API key from localStorage on mount
+  React.useEffect(() => {
+    const storedKey = typeof localStorage !== 'undefined' ? localStorage.getItem('userApiKey') : '';
+    if (storedKey) {
+      setApiKeyInput(storedKey);
+    }
+  }, []);
 
   const handlePresetChange = (id: string) => {
     const preset = getPresetById(id) || presets.find(p => p.id === id);
@@ -112,6 +126,36 @@ export const SettingsPanel: React.FC = () => {
     }
   };
 
+  const handleTestApiKey = async () => {
+    const candidateKey = apiKeyInput.trim();
+    if (!candidateKey) {
+      setTestResult({ type: 'error', message: 'Please enter an API key to test.' });
+      return;
+    }
+
+    setIsTestingKey(true);
+    setTestResult(null);
+    try {
+      const ai = new GoogleGenAI({ apiKey: candidateKey });
+      const result = await ai.models.listModels({ pageSize: 1 });
+      const modelName = result.models?.[0]?.name || 'Gemini API';
+      setTestResult({ type: 'success', message: `✓ API key verified! Access to ${modelName}.` });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Unknown error while testing key.';
+      setTestResult({ type: 'error', message: `✗ API key test failed: ${message}` });
+    } finally {
+      setIsTestingKey(false);
+    }
+  };
+
+  const handleSaveApiKey = () => {
+    if (typeof localStorage !== 'undefined' && apiKeyInput.trim()) {
+      localStorage.setItem('userApiKey', apiKeyInput.trim());
+      setTestResult({ type: 'success', message: '✓ API key saved for this browser.' });
+      actions.addNotification('success', 'API key saved successfully!', 3000);
+    }
+  };
+
   if (!isPanelOpen) return null;
 
   return (
@@ -144,6 +188,66 @@ export const SettingsPanel: React.FC = () => {
         </div>
 
         <div className="px-4 py-4 space-y-5">
+          <Section title="Gemini API Key" description="Required for generating comics. Get your key from Google AI Studio">
+            <div className="space-y-3">
+              <div>
+                <FieldLabel label="API Key" hint="Keep this secret" />
+                <input
+                  type="password"
+                  value={apiKeyInput}
+                  onChange={(e) => setApiKeyInput(e.target.value)}
+                  className="w-full border border-gray-300 rounded-md px-3 py-2 font-mono text-sm"
+                  placeholder="AIza..."
+                />
+              </div>
+              <div className="flex flex-wrap items-center gap-2">
+                <button 
+                  className="comic-btn bg-blue-500 text-white text-sm px-4 py-2 hover:bg-blue-400 disabled:opacity-60 disabled:cursor-not-allowed" 
+                  onClick={handleTestApiKey}
+                  disabled={isTestingKey}
+                >
+                  {isTestingKey ? '🔄 Testing...' : '🧪 Test Key'}
+                </button>
+                <button 
+                  className="comic-btn bg-green-500 text-white text-sm px-4 py-2 hover:bg-green-400" 
+                  onClick={handleSaveApiKey}
+                >
+                  💾 Save Key
+                </button>
+                <a
+                  href="https://aistudio.google.com/app/apikey"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-xs text-blue-600 hover:text-blue-800 underline ml-auto"
+                >
+                  Get API Key →
+                </a>
+              </div>
+              {testResult && (
+                <div className={`p-3 rounded border text-sm font-mono ${
+                  testResult.type === 'success' 
+                    ? 'bg-green-50 border-green-300 text-green-800' 
+                    : 'bg-red-50 border-red-300 text-red-800'
+                }`}>
+                  {testResult.message}
+                </div>
+              )}
+              <div className="bg-amber-50 border border-amber-300 rounded p-3">
+                <p className="text-xs text-amber-800 leading-relaxed">
+                  <strong>Note:</strong> Gemini 3 Pro Image Preview requires a billing-enabled project.{' '}
+                  <a 
+                    href="https://ai.google.dev/gemini-api/docs/billing" 
+                    target="_blank" 
+                    rel="noopener noreferrer"
+                    className="text-blue-600 hover:text-blue-800 underline font-semibold"
+                  >
+                    Read the billing docs
+                  </a>
+                </p>
+              </div>
+            </div>
+          </Section>
+
           <Section title="Model Presets" description="Store prompt baselines with your offline library and pick one for this book">
             <div className="space-y-3">
               <div>

@@ -5,7 +5,6 @@
 */
 
 import React, { Suspense, lazy } from 'react';
-import { ApiKeyDialog } from './ApiKeyDialog';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { GlobalLoadingIndicator } from './components/GlobalLoadingIndicator';
 import { NotificationToast } from './components/NotificationToast';
@@ -15,7 +14,6 @@ import { BookProvider, useBook } from './context/BookContext';
 import { ModelPresetProvider } from './context/ModelPresetContext';
 import { SettingsProvider } from './context/SettingsContext';
 import { Persona } from './types';
-import { useApiKey } from './useApiKey';
 import { compressImage, estimateBase64Size, formatBytes } from './utils/imageCompression';
 
 // Lazy load heavy components for better code splitting
@@ -24,37 +22,6 @@ const Setup = lazy(() => import('./Setup').then(m => ({ default: m.Setup })));
 
 const AppContent: React.FC = () => {
   const { state, actions } = useBook();
-  const {
-    showApiKeyDialog,
-    setShowApiKeyDialog,
-    validateApiKey,
-    handleApiKeyDialogContinue,
-    handleApiKeySave,
-    apiKeyInput,
-    setApiKeyInput,
-    testApiKey,
-    isTestingKey,
-    testResult,
-  } = useApiKey();
-
-  // Check for API key on mount
-  React.useEffect(() => {
-    validateApiKey();
-  }, [validateApiKey]);
-
-  // Sync API errors from state to the dialog hook
-  React.useEffect(() => {
-    if (state.error === 'API_KEY_ERROR' && !showApiKeyDialog) {
-      // Use setTimeout to ensure loading states have been cleared
-      // and give React a chance to complete any pending renders
-      const timeoutId = setTimeout(() => {
-        setShowApiKeyDialog(true);
-        actions.clearError();
-      }, 50);
-
-      return () => clearTimeout(timeoutId);
-    }
-  }, [state.error, showApiKeyDialog, setShowApiKeyDialog, actions]);
 
   const handleHeroUpload = async (file: File) => {
     // Validate file type
@@ -134,18 +101,6 @@ const AppContent: React.FC = () => {
       <SettingsPanel />
 
       <div className="comic-scene pt-24">
-      {showApiKeyDialog && (
-        <ApiKeyDialog
-          onContinue={handleApiKeyDialogContinue}
-          onSaveKey={handleApiKeySave}
-          onTestKey={testApiKey}
-          apiKey={apiKeyInput}
-          onApiKeyChange={setApiKeyInput}
-          isTesting={isTestingKey}
-          testResult={testResult}
-        />
-      )}
-
         <NotificationToast
           notifications={state.notifications}
           onDismiss={actions.removeNotification}
