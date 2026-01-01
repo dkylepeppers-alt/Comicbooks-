@@ -7,6 +7,14 @@
 import { openDB, DBSchema, IDBPDatabase } from 'idb';
 import { ModelPreset, Persona, World } from '../types';
 
+// Custom error class for permission-related errors
+class PermissionError extends Error {
+  constructor(message: string, public readonly resource: string) {
+    super(message);
+    this.name = 'PermissionError';
+  }
+}
+
 interface HeroesDB extends DBSchema {
   heroes: {
     key: string;
@@ -82,7 +90,13 @@ const getSubDir = async (name: string) => {
   try {
     return await rootHandle.getDirectoryHandle(name, { create: true });
   } catch (e) {
-    console.error("FS Error getting subdir", e);
+    console.error(`FS Error getting subdir "${name}":`, e);
+    // Check if it's a permission error using proper type checking
+    if (e instanceof DOMException && (e.name === 'NotAllowedError' || e.name === 'SecurityError')) {
+      // Permission denied - throw custom error to let caller handle
+      throw new PermissionError(`Permission denied accessing "${name}" directory. Please reconnect your library.`, name);
+    }
+    // For other errors, return null to fall back to IndexedDB
     return null;
   }
 };
@@ -248,15 +262,24 @@ export const StorageService = {
     let fsItems: any[] = [];
     let idbItems: any[] = [];
     let idbError: unknown = null;
+    let fsError: unknown = null;
 
     // 1. Try File System
     if (rootHandle) {
         try {
             const dir = await getSubDir('characters');
-            if (dir) fsItems = await readFiles(dir);
+            if (dir) {
+              fsItems = await readFiles(dir);
+            } else {
+              console.warn("Could not access characters directory from file system, falling back to IndexedDB");
+            }
         } catch (e) {
             console.error("Failed to read characters from file system:", e);
-            // Continue with IDB even if FS fails
+            fsError = e;
+            // If it's a permission error, we should propagate it but still try IDB
+            if (e instanceof PermissionError) {
+              console.warn("File system permission lost. Attempting to read from IndexedDB backup.");
+            }
         }
     }
 
@@ -316,8 +339,19 @@ export const StorageService = {
 
     const items = Array.from(mergedMap.values());
 
-    if (!items.length && idbError) {
+    // If both sources failed and we have no items, throw the most relevant error
+    if (!items.length) {
+      if (fsError && idbError) {
+        throw new Error('Failed to load characters from both file system and local storage. Please check permissions and try reconnecting your library.');
+      } else if (fsError && rootHandle) {
+        // File system failed but IDB succeeded (though returned no items)
+        console.warn('File system access failed, using IndexedDB only');
+        if (fsError instanceof PermissionError) {
+          throw new Error('Lost access to your library folder. Please reconnect to restore file system characters.');
+        }
+      } else if (idbError) {
         throw idbError;
+      }
     }
 
     const sortedItems = items.sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
@@ -358,15 +392,24 @@ export const StorageService = {
     let fsItems: any[] = [];
     let idbItems: any[] = [];
     let idbError: unknown = null;
+    let fsError: unknown = null;
 
     // 1. Try File System
     if (rootHandle) {
         try {
             const dir = await getSubDir('worlds');
-            if (dir) fsItems = await readFiles(dir);
+            if (dir) {
+              fsItems = await readFiles(dir);
+            } else {
+              console.warn("Could not access worlds directory from file system, falling back to IndexedDB");
+            }
         } catch (e) {
             console.error("Failed to read worlds from file system:", e);
-            // Continue with IDB even if FS fails
+            fsError = e;
+            // If it's a permission error, we should propagate it but still try IDB
+            if (e instanceof PermissionError) {
+              console.warn("File system permission lost. Attempting to read from IndexedDB backup.");
+            }
         }
     }
 
@@ -418,8 +461,19 @@ export const StorageService = {
 
     const items = Array.from(mergedMap.values());
 
-    if (!items.length && idbError) {
+    // If both sources failed and we have no items, throw the most relevant error
+    if (!items.length) {
+      if (fsError && idbError) {
+        throw new Error('Failed to load worlds from both file system and local storage. Please check permissions and try reconnecting your library.');
+      } else if (fsError && rootHandle) {
+        // File system failed but IDB succeeded (though returned no items)
+        console.warn('File system access failed, using IndexedDB only');
+        if (fsError instanceof PermissionError) {
+          throw new Error('Lost access to your library folder. Please reconnect to restore file system worlds.');
+        }
+      } else if (idbError) {
         throw idbError;
+      }
     }
 
     const sortedItems = items.sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
@@ -475,13 +529,22 @@ export const StorageService = {
     let fsItems: ModelPreset[] = [];
     let idbItems: ModelPreset[] = [];
     let idbError: unknown = null;
+    let fsError: unknown = null;
 
     if (rootHandle) {
         try {
             const dir = await getSubDir('presets');
-            if (dir) fsItems = await readFiles<ModelPreset>(dir);
+            if (dir) {
+              fsItems = await readFiles<ModelPreset>(dir);
+            } else {
+              console.warn("Could not access presets directory from file system, falling back to IndexedDB");
+            }
         } catch (e) {
             console.error('Failed to read presets from file system:', e);
+            fsError = e;
+            if (e instanceof PermissionError) {
+              console.warn("File system permission lost. Attempting to read from IndexedDB backup.");
+            }
         }
     }
 
@@ -516,8 +579,20 @@ export const StorageService = {
     });
 
     const items = Array.from(mergedMap.values());
-    if (!items.length && idbError) {
+    
+    // If both sources failed and we have no items, throw the most relevant error
+    if (!items.length) {
+      if (fsError && idbError) {
+        throw new Error('Failed to load presets from both file system and local storage. Please check permissions and try reconnecting your library.');
+      } else if (fsError && rootHandle) {
+        // File system failed but IDB succeeded (though returned no items)
+        console.warn('File system access failed, using IndexedDB only');
+        if (fsError instanceof PermissionError) {
+          throw new Error('Lost access to your library folder. Please reconnect to restore file system presets.');
+        }
+      } else if (idbError) {
         throw idbError;
+      }
     }
 
     const sortedItems = items.sort((a, b) => (b.updatedAt || 0) - (a.updatedAt || 0));
