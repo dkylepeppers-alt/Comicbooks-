@@ -50,7 +50,7 @@ const defaultSettings: Settings = {
   reducedMotion: false,
   fontScale: 100,
   highContrast: false,
-  model: 'gemini-2.0-pro',
+  model: 'gemini-3-flash-preview',
   maxTokens: 800,
   creativity: 0.5,
   concurrentGenerations: 2,
