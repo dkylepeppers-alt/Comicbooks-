@@ -20,7 +20,7 @@ export const GlobalLoadingIndicator: React.FC = () => {
     : undefined;
 
   return (
-    <div className="fixed top-4 right-4 w-80 max-w-[90vw] rounded-lg shadow-2xl bg-white/90 backdrop-blur border-2 border-black z-50">
+    <div className="fixed top-20 right-4 w-80 max-w-[90vw] rounded-lg shadow-2xl bg-white/90 backdrop-blur border-2 border-black z-50">
       <div className="px-4 py-3 border-b-2 border-black flex items-center justify-between gap-2">
         <div>
           <p className="text-sm font-comic font-bold text-gray-900">{progress?.label ?? 'Preparing next panel...'}</p>
