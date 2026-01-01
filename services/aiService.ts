@@ -54,14 +54,18 @@ const setCachedBeat = (key: string, beat: Beat): void => {
 
 const getAI = () => {
   if (!navigator.onLine) {
+    console.error("[AI Service] Network is offline");
     throw new Error("OFFLINE: Please check your internet connection.");
   }
   const storedKey = typeof localStorage !== 'undefined' ? localStorage.getItem('userApiKey') : undefined;
   const apiKey = storedKey || process.env.API_KEY;
 
   if (!apiKey) {
+    console.error("[AI Service] No API key found in localStorage or environment");
     throw new Error("API_KEY_INVALID");
   }
+  
+  console.log("[AI Service] API initialized successfully");
   return new GoogleGenAI({ apiKey });
 };
 
@@ -110,6 +114,10 @@ export const AiService = {
     signal?: AbortSignal
   ): Promise<Persona> {
     const style = genre === 'Custom' ? "Modern American comic book art" : `${genre} comic`;
+    const startTime = Date.now();
+    
+    console.log(`[AI Service] Starting persona generation - Genre: ${genre}, Description: ${desc}`);
+    
     const ai = getAI();
 
     // Create timeout signal
@@ -121,20 +129,34 @@ export const AiService = {
     try {
       // Check if already aborted
       if (timeoutSignal.aborted) {
+        console.warn("[AI Service] Persona generation aborted before API call");
         throw timeoutSignal.reason || new Error('Operation aborted');
       }
 
+      console.log(`[AI Service] Calling Gemini API - Model: ${MODEL_IMAGE_GEN_NAME}, Timeout: ${TIMEOUT_CONFIG.PERSONA_GENERATION}ms`);
+      
       const res = await ai.models.generateContent({
         model: MODEL_IMAGE_GEN_NAME,
         contents: { text: `STYLE: Masterpiece ${style} character sheet, detailed ink, neutral background. FULL BODY. Character: ${desc}` },
         config: { imageConfig: { aspectRatio: '1:1' } }
       });
 
+      const elapsed = Date.now() - startTime;
+      console.log(`[AI Service] Persona generation completed in ${elapsed}ms`);
+
       const part = res.candidates?.[0]?.content?.parts?.find(p => p.inlineData);
       if (part?.inlineData?.data) {
+        const sizeKB = Math.round(part.inlineData.data.length * 0.75 / 1024);
+        console.log(`[AI Service] Persona image generated successfully - Size: ~${sizeKB}KB`);
         return { base64: part.inlineData.data, name: "Sidekick", description: desc };
       }
+      
+      console.error("[AI Service] No image data in API response", { candidates: res.candidates });
       throw new Error("Failed to generate persona image");
+    } catch (error) {
+      const elapsed = Date.now() - startTime;
+      console.error(`[AI Service] Persona generation failed after ${elapsed}ms`, error);
+      throw error;
     } finally {
       cleanup();
     }
@@ -280,9 +302,13 @@ OUTPUT STRICT JSON ONLY (No markdown formatting):
       signal
     );
 
+    const startTime = Date.now();
+    console.log(`[AI Service] Starting beat generation - Page: ${pageNum}, Model: ${textModel}, Has guidance: ${!!userGuidance}`);
+
     try {
         // Check if already aborted
         if (timeoutSignal.aborted) {
+          console.warn("[AI Service] Beat generation aborted before API call");
           throw timeoutSignal.reason || new Error('Operation aborted');
         }
 
@@ -293,6 +319,9 @@ OUTPUT STRICT JSON ONLY (No markdown formatting):
             config: { responseMimeType: 'application/json' }
         });
 
+        const elapsed = Date.now() - startTime;
+        console.log(`[AI Service] Beat generation API call completed in ${elapsed}ms`);
+
         let rawText = res.text || "{}";
         rawText = rawText.replace(/```json/g, '').replace(/```/g, '').trim();
 
@@ -300,8 +329,9 @@ OUTPUT STRICT JSON ONLY (No markdown formatting):
 
         try {
           parsed = JSON.parse(rawText) as Beat;
+          console.log(`[AI Service] Beat parsed successfully - Focus: ${parsed.focus_char}, Has dialogue: ${!!parsed.dialogue}`);
         } catch (parseError) {
-          console.error("Beat parsing failed; using fallback beat", parseError);
+          console.error("[AI Service] Beat parsing failed; using fallback beat", { parseError, rawText: rawText.substring(0, 200) });
           parsed = {
             scene: "Unexpected twist to keep the story moving forward.",
             caption: "The story stumbles but keeps going…",
@@ -320,11 +350,13 @@ OUTPUT STRICT JSON ONLY (No markdown formatting):
         // Cache the result if applicable
         if (cacheKey) {
           setCachedBeat(cacheKey, parsed);
+          console.log(`[AI Service] Beat cached with key: ${cacheKey}`);
         }
 
         return parsed;
     } catch (e) {
-        console.error("Beat generation failed", e);
+        const elapsed = Date.now() - startTime;
+        console.error(`[AI Service] Beat generation failed after ${elapsed}ms`, e);
         throw e;
     } finally {
         cleanup();
@@ -405,9 +437,14 @@ OUTPUT STRICT JSON ONLY (No markdown formatting):
       signal
     );
 
+    const startTime = Date.now();
+    const refCount = contents.filter(c => c.inlineData).length;
+    console.log(`[AI Service] Starting image generation - Type: ${type}, References: ${refCount}, Model: ${MODEL_IMAGE_GEN_NAME}`);
+
     try {
         // Check if already aborted
         if (timeoutSignal.aborted) {
+          console.warn("[AI Service] Image generation aborted before API call");
           throw timeoutSignal.reason || new Error('Operation aborted');
         }
 
@@ -417,10 +454,22 @@ OUTPUT STRICT JSON ONLY (No markdown formatting):
           contents: contents,
           config: { imageConfig: { aspectRatio: '2:3' } }
         });
+        
+        const elapsed = Date.now() - startTime;
+        console.log(`[AI Service] Image generation API call completed in ${elapsed}ms`);
+        
         const part = res.candidates?.[0]?.content?.parts?.find(p => p.inlineData);
-        return part?.inlineData?.data ? `data:${part.inlineData.mimeType};base64,${part.inlineData.data}` : '';
+        if (part?.inlineData?.data) {
+          const sizeKB = Math.round(part.inlineData.data.length * 0.75 / 1024);
+          console.log(`[AI Service] Image generated successfully - Size: ~${sizeKB}KB`);
+          return `data:${part.inlineData.mimeType};base64,${part.inlineData.data}`;
+        }
+        
+        console.error("[AI Service] No image data in API response", { candidates: res.candidates });
+        return '';
     } catch (e) {
-        console.error("Image generation failed", e);
+        const elapsed = Date.now() - startTime;
+        console.error(`[AI Service] Image generation failed after ${elapsed}ms`, e);
         throw e;
     } finally {
         cleanup();
