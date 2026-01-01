@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
 */
 
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { WorldBuilder } from './components/WorldBuilder';
 import { useBook } from './context/BookContext';
 import { useModelPresets } from './context/ModelPresetContext';
@@ -121,6 +121,7 @@ export const Setup: React.FC<SetupProps> = (props) => {
     const { presets, getPresetById } = useModelPresets();
     const [libraryRestored, setLibraryRestored] = useState(false);
     const [hadLibraryAccess, setHadLibraryAccess] = useState(false);
+    const restoreAttemptedRef = useRef(false);
 
     const refreshLibrary = React.useCallback(() => {
         StorageService.getCharacters()
@@ -132,8 +133,13 @@ export const Setup: React.FC<SetupProps> = (props) => {
     }, [addNotification]);
 
     useEffect(() => {
-        StorageService.restoreLocalLibrary()
-            .then(async (restored) => {
+        const restoreLibrary = async () => {
+            if (restoreAttemptedRef.current) return;
+            restoreAttemptedRef.current = true;
+
+            try {
+                const restored = await StorageService.restoreLocalLibrary();
+
                 if (restored) {
                     refreshLibrary();
                     try {
@@ -144,13 +150,16 @@ export const Setup: React.FC<SetupProps> = (props) => {
                         actions.addNotification('warning', 'Library reconnected but worlds could not be loaded');
                     }
                 }
+
                 setLibraryRestored(true);
                 setHadLibraryAccess(restored);
-            })
-            .catch((error) => {
+            } catch (error) {
                 console.warn('Library restore attempt failed', error);
                 setLibraryRestored(true);
-            });
+            }
+        };
+
+        restoreLibrary();
     }, [actions, loadWorlds, refreshLibrary]);
 
     useEffect(() => {
