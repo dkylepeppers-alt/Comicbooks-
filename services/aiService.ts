@@ -336,7 +336,12 @@ OUTPUT STRICT JSON ONLY (No markdown formatting):
           parsed = JSON.parse(rawText) as Beat;
           console.log(`[AI Service] Beat parsed successfully - Focus: ${parsed.focus_char}, Has dialogue: ${!!parsed.dialogue}`);
         } catch (parseError) {
-          console.error("[AI Service] Beat parsing failed; using fallback beat", { parseError, rawText: rawText.substring(0, 200) });
+          // Note: we intentionally avoid logging rawText/story content here to protect user privacy.
+          // Logging only the error object and minimal metadata (like length) is sufficient for debugging.
+          console.error("[AI Service] Beat parsing failed; using fallback beat", {
+            parseError,
+            rawTextLength: rawText.length
+          });
           parsed = {
             scene: "Unexpected twist to keep the story moving forward.",
             caption: "The story stumbles but keeps going…",
@@ -381,7 +386,7 @@ OUTPUT STRICT JSON ONLY (No markdown formatting):
     
     return retryWithBackoff(
       async () => {
-        const contents: any[] = [];
+        const contents: Array<{ text?: string; inlineData?: { mimeType: string; data: string } }> = [];
         
         // 1. Hero References (multiple images if available)
         if (hero?.images && hero.images.length > 0) {

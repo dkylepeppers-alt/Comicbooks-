@@ -72,10 +72,14 @@ The `testApiKey()` function now provides comprehensive diagnostics:
 **Detailed Logging:**
 ```typescript
 console.log('[API Key Test] Starting API key validation...');
-console.log('[API Key Test] Key prefix:', candidateKey.substring(0, 10) + '...');
+console.log('[API Key Test] API key length:', candidateKey.length);
+console.log('[API Key Test] Creating GoogleGenAI client...');
 console.log('[API Key Test] Calling models.list() API...');
 console.log(`[API Key Test] API call completed in ${elapsed}ms`);
-console.log('[API Key Test] Response:', result);
+console.log('[API Key Test] Response summary:', {
+  modelsCount: result.models?.length ?? 0,
+  firstModelName: result.models?.[0]?.name ?? null,
+});
 ```
 
 **User-Friendly Error Messages:**

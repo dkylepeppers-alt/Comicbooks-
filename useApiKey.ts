@@ -82,7 +82,7 @@ export const useApiKey = () => {
     }
 
     console.log('[API Key Test] Starting API key validation...');
-    console.log('[API Key Test] Key prefix:', candidateKey.substring(0, 10) + '...');
+    console.log('[API Key Test] API key length:', candidateKey.length);
     
     setIsTestingKey(true);
     setTestResult(null);
@@ -98,7 +98,10 @@ export const useApiKey = () => {
       
       const elapsed = Date.now() - startTime;
       console.log(`[API Key Test] API call completed in ${elapsed}ms`);
-      console.log('[API Key Test] Response:', result);
+      console.log('[API Key Test] Response summary:', {
+        modelsCount: result.models?.length ?? 0,
+        firstModelName: result.models?.[0]?.name ?? null,
+      });
       
       const modelName = result.models?.[0]?.name || 'Gemini API';
       
@@ -118,7 +121,10 @@ export const useApiKey = () => {
       if (error instanceof Error) {
         console.error('[API Key Test] Error name:', error.name);
         console.error('[API Key Test] Error message:', error.message);
-        console.error('[API Key Test] Error stack:', error.stack);
+        // Only log stack trace in development to avoid exposing internal structure
+        if (import.meta.env.DEV) {
+          console.error('[API Key Test] Error stack:', error.stack);
+        }
       }
       
       // Check for common error types

@@ -44,13 +44,50 @@ export const LoadingFX: React.FC = () => {
       const originalWarn = console.warn;
       
       // Safe stringify helper that handles circular references and large objects
-      const safeStringify = (arg: any): string => {
-        if (typeof arg === 'string') return arg;
+      const MAX_LOG_LENGTH = 500;
+      
+      const safeStringify = (arg: unknown): string => {
+        if (typeof arg === 'string') {
+          // Truncate plain strings while indicating when truncation occurs
+          if (arg.length <= MAX_LOG_LENGTH) return arg;
+          const boundary = arg.lastIndexOf(' ', MAX_LOG_LENGTH - 14);
+          const cutIndex = boundary > 0 ? boundary : MAX_LOG_LENGTH - 14;
+          return arg.slice(0, cutIndex) + '... [truncated]';
+        }
+
         try {
-          // Limit object depth to prevent performance issues
-          return JSON.stringify(arg, null, 0).substring(0, 500);
-        } catch (e) {
-          return '[Circular or non-serializable object]';
+          const seen = new WeakSet<object>();
+          const json = JSON.stringify(
+            arg,
+            (_key, value) => {
+              if (typeof value === 'object' && value !== null) {
+                if (seen.has(value)) {
+                  return '[Circular]';
+                }
+                seen.add(value);
+              }
+              return value;
+            }
+          );
+
+          if (!json) return '';
+          if (json.length <= MAX_LOG_LENGTH) return json;
+
+          // Prefer truncating at a word boundary when possible
+          const boundary = json.lastIndexOf(' ', MAX_LOG_LENGTH - 14);
+          const cutIndex = boundary > 0 ? boundary : MAX_LOG_LENGTH - 14;
+          return json.slice(0, cutIndex) + '... [truncated]';
+        } catch {
+          // Fallback: best-effort string conversion with truncation
+          try {
+            const str = String(arg);
+            if (str.length <= MAX_LOG_LENGTH) return str;
+            const boundary = str.lastIndexOf(' ', MAX_LOG_LENGTH - 14);
+            const cutIndex = boundary > 0 ? boundary : MAX_LOG_LENGTH - 14;
+            return str.slice(0, cutIndex) + '... [truncated]';
+          } catch {
+            return '[Unserializable value]';
+          }
         }
       };
       
@@ -69,28 +106,59 @@ export const LoadingFX: React.FC = () => {
         }
       };
       
-      console.log = (...args) => {
-        const message = args.map(safeStringify).join(' ');
-        captureLog(message, 'info');
-        originalLog.apply(console, args);
-      };
-      
-      console.error = (...args) => {
-        const message = args.map(safeStringify).join(' ');
-        captureLog(message, 'error');
-        originalError.apply(console, args);
-      };
-      
-      console.warn = (...args) => {
-        const message = args.map(safeStringify).join(' ');
-        captureLog(message, 'warning');
-        originalWarn.apply(console, args);
-      };
+      // Use a global counter to avoid multiple wrapping layers
+      const globalAny = window as unknown as { __loadingFxConsoleWrapperCount?: number };
+      if (typeof globalAny.__loadingFxConsoleWrapperCount !== 'number') {
+        globalAny.__loadingFxConsoleWrapperCount = 0;
+      }
+      globalAny.__loadingFxConsoleWrapperCount += 1;
+
+      const isAlreadyWrapped =
+        (console.log as typeof console.log & { __loadingFxWrapped?: boolean }).__loadingFxWrapped &&
+        (console.error as typeof console.error & { __loadingFxWrapped?: boolean }).__loadingFxWrapped &&
+        (console.warn as typeof console.warn & { __loadingFxWrapped?: boolean }).__loadingFxWrapped;
+
+      const didWrap = !isAlreadyWrapped;
+
+      if (didWrap) {
+        const wrappedLog = (...args: unknown[]) => {
+          const message = args.map(safeStringify).join(' ');
+          captureLog(message, 'info');
+          originalLog.apply(console, args);
+        };
+        (wrappedLog as typeof wrappedLog & { __loadingFxWrapped: boolean }).__loadingFxWrapped = true;
+        console.log = wrappedLog as typeof console.log;
+
+        const wrappedError = (...args: unknown[]) => {
+          const message = args.map(safeStringify).join(' ');
+          captureLog(message, 'error');
+          originalError.apply(console, args);
+        };
+        (wrappedError as typeof wrappedError & { __loadingFxWrapped: boolean }).__loadingFxWrapped = true;
+        console.error = wrappedError as typeof console.error;
+
+        const wrappedWarn = (...args: unknown[]) => {
+          const message = args.map(safeStringify).join(' ');
+          captureLog(message, 'warning');
+          originalWarn.apply(console, args);
+        };
+        (wrappedWarn as typeof wrappedWarn & { __loadingFxWrapped: boolean }).__loadingFxWrapped = true;
+        console.warn = wrappedWarn as typeof console.warn;
+      }
       
       return () => {
-        console.log = originalLog;
-        console.error = originalError;
-        console.warn = originalWarn;
+        const globalCleanupAny = window as unknown as { __loadingFxConsoleWrapperCount?: number };
+        if (typeof globalCleanupAny.__loadingFxConsoleWrapperCount === 'number') {
+          globalCleanupAny.__loadingFxConsoleWrapperCount -= 1;
+        }
+
+        // Only restore the original console methods if this instance performed
+        // the wrapping and no other instances are still mounted.
+        if (didWrap && globalCleanupAny.__loadingFxConsoleWrapperCount === 0) {
+          console.log = originalLog;
+          console.error = originalError;
+          console.warn = originalWarn;
+        }
       };
     }, []);
     
