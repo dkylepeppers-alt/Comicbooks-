@@ -31,16 +31,16 @@ export async function compressImage(
           let width = img.width;
           let height = img.height;
 
+          // Scale to fit within both maxWidth and maxHeight constraints
           if (width > maxWidth || height > maxHeight) {
-            const aspectRatio = width / height;
+            const widthRatio = maxWidth / width;
+            const heightRatio = maxHeight / height;
             
-            if (width > height) {
-              width = maxWidth;
-              height = width / aspectRatio;
-            } else {
-              height = maxHeight;
-              width = height * aspectRatio;
-            }
+            // Use the smaller ratio to ensure both dimensions stay within limits
+            const scale = Math.min(widthRatio, heightRatio);
+            
+            width = Math.round(width * scale);
+            height = Math.round(height * scale);
           }
 
           // Create canvas and draw resized image
@@ -91,12 +91,15 @@ export async function compressImage(
 }
 
 /**
- * Estimates the size of a base64 string in bytes
+ * Estimates the original binary data size from a base64 string in bytes.
+ * Base64 encoding increases size by ~33% (4 chars per 3 bytes).
+ * This function calculates the approximate decoded size.
  */
 export function estimateBase64Size(base64: string): number {
-  // Base64 encoding increases size by ~33%
-  // Each character in base64 is 6 bits, so divide by 0.75 to get original size
-  return Math.ceil((base64.length * 3) / 4);
+  // Each base64 character represents 6 bits (3/4 of a byte)
+  // Subtract padding characters and calculate original size
+  const paddingChars = (base64.match(/=/g) || []).length;
+  return Math.ceil((base64.length * 3) / 4) - paddingChars;
 }
 
 /**

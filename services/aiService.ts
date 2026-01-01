@@ -19,7 +19,7 @@ import {
 const MODEL_IMAGE_GEN_NAME = "gemini-3-pro-image-preview";
 const MODEL_TEXT_NAME = "gemini-3-flash-preview";
 
-// Simple LRU cache for beat generation to avoid regenerating same content
+// True LRU cache for beat generation to avoid regenerating same content
 const beatCache = new Map<string, { beat: Beat; timestamp: number }>();
 const BEAT_CACHE_MAX_SIZE = 20;
 const BEAT_CACHE_TTL = 5 * 60 * 1000; // 5 minutes
@@ -34,16 +34,21 @@ const getCachedBeat = (key: string): Beat | null => {
     return null;
   }
   
+  // Move to end for LRU (re-insert)
+  beatCache.delete(key);
+  beatCache.set(key, cached);
+  
   return cached.beat;
 };
 
 const setCachedBeat = (key: string, beat: Beat): void => {
-  // Simple LRU: if cache is full, remove oldest entry
+  // True LRU: if cache is full, remove least recently used (first entry)
   if (beatCache.size >= BEAT_CACHE_MAX_SIZE) {
     const firstKey = beatCache.keys().next().value;
     if (firstKey) beatCache.delete(firstKey);
   }
   
+  // Add new entry at the end (most recently used)
   beatCache.set(key, { beat, timestamp: Date.now() });
 };
 
