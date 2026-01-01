@@ -26,6 +26,7 @@ import {
 } from '../types';
 import { AiService } from '../services/aiService';
 import { StorageService } from '../services/storage';
+import { logger } from '../services/logger';
 
 const initialState: ComicState = {
   status: 'setup',
@@ -363,8 +364,13 @@ export const useComicEngine = () => {
         completed++;
       }
     } catch (e) {
-      console.error("Batch Generation Error:", e);
       const msg = String(e);
+
+      logger.logError('Batch Generation Error', e, {
+        area: 'generation',
+        action: 'generateBatch',
+        metadata: { startPage, count, message: msg },
+      });
 
       // Fail any pages that were in-flight so panels don't stay in a loading limbo
       pagesToGen.forEach(pageNum => {
@@ -444,10 +450,10 @@ export const useComicEngine = () => {
         generatingPagesRef.current.delete(0);
         activeControllersRef.current.delete('cover-image');
     } catch (e) {
-        console.error("Launch Error:", e);
-        activeControllersRef.current.delete('cover-image');
-        dispatch({ type: 'SET_ERROR', payload: "API_KEY_ERROR" });
-        return;
+      logger.logError('Launch Error', e, { area: 'generation', action: 'launchStory' });
+      activeControllersRef.current.delete('cover-image');
+      dispatch({ type: 'SET_ERROR', payload: "API_KEY_ERROR" });
+      return;
     }
 
     dispatch({
