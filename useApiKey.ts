@@ -127,23 +127,32 @@ export const useApiKey = () => {
         }
       }
       
-      // Check for common error types
-      const errorStr = String(error);
+      // Check for common error types using structured properties when available
+      const anyError = error as { status?: number; code?: string; message?: string } | undefined;
+      const status = typeof anyError?.status === 'number' ? anyError.status : undefined;
+      const code = typeof anyError?.code === 'string' ? anyError.code : undefined;
+      const message = typeof anyError?.message === 'string' ? anyError.message : undefined;
+      
       let friendlyMessage = 'Unknown error while testing key.';
       
-      if (errorStr.includes('403') || errorStr.includes('PERMISSION_DENIED')) {
+      if (status === 403 || code === 'PERMISSION_DENIED') {
         friendlyMessage = 'Permission denied. This key may not have access to the Gemini API or requires billing to be enabled.';
         console.error('[API Key Test] 403/Permission error detected');
-      } else if (errorStr.includes('401') || errorStr.includes('UNAUTHENTICATED')) {
+      } else if (status === 401 || code === 'UNAUTHENTICATED') {
         friendlyMessage = 'Authentication failed. The API key appears to be invalid.';
         console.error('[API Key Test] 401/Auth error detected');
-      } else if (errorStr.includes('429') || errorStr.includes('RESOURCE_EXHAUSTED')) {
+      } else if (status === 429 || code === 'RESOURCE_EXHAUSTED') {
         friendlyMessage = 'Rate limit exceeded. Please wait a moment and try again.';
         console.error('[API Key Test] 429/Rate limit error detected');
-      } else if (errorStr.includes('OFFLINE') || errorStr.includes('network')) {
+      } else if (
+        code === 'OFFLINE' ||
+        (typeof status === 'number' && status === 0) ||
+        (typeof message === 'string' && /network|offline/i.test(message))
+      ) {
         friendlyMessage = 'Network error. Please check your internet connection.';
         console.error('[API Key Test] Network error detected');
       } else if (error instanceof Error) {
+        // Fallback to the raw error message if we couldn't classify the error
         friendlyMessage = error.message;
       }
       
