@@ -25,7 +25,7 @@ export async function retryWithBackoff<T>(
     onRetry
   } = options;
 
-  let lastError: Error;
+  let lastError: Error = new Error('Unknown error');
   
   for (let attempt = 0; attempt <= maxRetries; attempt++) {
     try {
@@ -33,13 +33,29 @@ export async function retryWithBackoff<T>(
     } catch (error) {
       lastError = error instanceof Error ? error : new Error(String(error));
       
-      // Don't retry on these errors
-      if (
-        lastError.message.includes('API_KEY_INVALID') ||
-        lastError.message.includes('403') ||
-        lastError.message.includes('PERMISSION_DENIED') ||
-        lastError.message.includes('Requested entity was not found')
-      ) {
+      // Check for structured error properties when available (more reliable than string matching)
+      const structuredError = error as { status?: number; code?: string; message?: string } | undefined;
+      const statusCode = typeof structuredError?.status === 'number' ? structuredError.status : undefined;
+      const errorCode = typeof structuredError?.code === 'string' ? structuredError.code : undefined;
+      const errorMessage = typeof structuredError?.message === 'string' ? structuredError.message : lastError.message;
+      
+      // Don't retry on these errors - they are permanent failures
+      const isPermanentError = 
+        errorCode === 'PERMISSION_DENIED' ||
+        errorCode === 'UNAUTHENTICATED' ||
+        errorCode === 'API_KEY_INVALID' ||
+        statusCode === 403 ||
+        statusCode === 401 ||
+        statusCode === 404 ||
+        errorMessage.includes('API_KEY_INVALID') ||
+        errorMessage.includes('Requested entity was not found') ||
+        // Fallback to string matching only if structured properties aren't available
+        (!statusCode && !errorCode && (
+          errorMessage.includes('403') ||
+          errorMessage.includes('PERMISSION_DENIED')
+        ));
+      
+      if (isPermanentError) {
         throw lastError;
       }
 
@@ -61,7 +77,7 @@ export async function retryWithBackoff<T>(
     }
   }
 
-  throw lastError!;
+  throw lastError;
 }
 
 /**
