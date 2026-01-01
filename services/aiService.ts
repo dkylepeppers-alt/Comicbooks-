@@ -15,6 +15,7 @@ import {
   LANGUAGES,
   TIMEOUT_CONFIG
 } from '../types';
+import { retryWithBackoff } from '../utils/performanceUtils';
 
 const MODEL_IMAGE_GEN_NAME = "gemini-3-pro-image-preview";
 const MODEL_TEXT_NAME = "gemini-3-flash-preview";
@@ -376,107 +377,119 @@ OUTPUT STRICT JSON ONLY (No markdown formatting):
     world: World | null,
     signal?: AbortSignal // AbortSignal for cancellation/timeout
   ): Promise<string> {
-    const contents: any[] = [];
-    
-    // 1. Hero References (multiple images if available)
-    if (hero?.images && hero.images.length > 0) {
-        // Use all available hero images for better character consistency
-        hero.images.forEach((img, i) => {
-            contents.push({ text: `REFERENCE [HERO ${i === 0 ? 'PRIMARY' : `ANGLE ${i}`}]:` });
-            contents.push({ inlineData: { mimeType: 'image/jpeg', data: img } });
-        });
-    } else if (hero?.base64) {
-        // Fallback for backward compatibility
-        contents.push({ text: "REFERENCE [HERO]:" });
-        contents.push({ inlineData: { mimeType: 'image/jpeg', data: hero.base64 } });
-    }
-    
-    // 2. Co-Star References (multiple images if available)
-    if (friend?.images && friend.images.length > 0) {
-        // Use all available co-star images for better character consistency
-        friend.images.forEach((img, i) => {
-            contents.push({ text: `REFERENCE [CO-STAR ${i === 0 ? 'PRIMARY' : `ANGLE ${i}`}]:` });
-            contents.push({ inlineData: { mimeType: 'image/jpeg', data: img } });
-        });
-    } else if (friend?.base64) {
-        // Fallback for backward compatibility
-        contents.push({ text: "REFERENCE [CO-STAR]:" });
-        contents.push({ inlineData: { mimeType: 'image/jpeg', data: friend.base64 } });
-    }
-    
-    // 3. World References (Max 3)
-    if (world?.images && world.images.length > 0) {
-        world.images.forEach((img, i) => {
-            contents.push({ text: `REFERENCE [WORLD ENVIRONMENT ${i+1}]:` });
-            contents.push({ inlineData: { mimeType: 'image/jpeg', data: img } });
-        });
-    }
-
-    const styleEra = config.genre === 'Custom' ? "Modern American" : config.genre;
-    let promptText = `STYLE: ${styleEra} comic book art, detailed ink, vibrant colors. `;
-    
-    if (type === 'cover') {
-        const langName = LANGUAGES.find(l => l.code === config.language)?.name || "English";
-        promptText += `TYPE: Comic Book Cover. TITLE: "INFINITE HEROES" (OR LOCALIZED TRANSLATION IN ${langName.toUpperCase()}). Main visual: Dynamic action shot of [HERO] (Use ALL REFERENCE [HERO] images to ensure character consistency).`;
-        if (world) {
-            promptText += ` BACKGROUND: Must match REFERENCE [WORLD ENVIRONMENT] strictly. Setting: ${world.name}.`;
-        }
-    } else if (type === 'back_cover') {
-        promptText += `TYPE: Comic Back Cover. FULL PAGE VERTICAL ART. Dramatic teaser. Text: "NEXT ISSUE SOON".`;
-    } else {
-        promptText += `TYPE: Vertical comic panel. SCENE: ${beat.scene}. `;
-        promptText += `INSTRUCTIONS: Maintain strict character likeness using ALL provided reference images. If scene mentions 'HERO', you MUST use ALL REFERENCE [HERO] images. If scene mentions 'CO-STAR' or 'SIDEKICK', you MUST use ALL REFERENCE [CO-STAR] images.`;
-        if (world) {
-            promptText += ` BACKGROUND: Must match REFERENCE [WORLD ENVIRONMENT] aesthetic. Setting: ${world.name}.`;
-        }
-        if (beat.caption) promptText += ` INCLUDE CAPTION BOX: "${beat.caption}"`;
-        if (beat.dialogue) promptText += ` INCLUDE SPEECH BUBBLE: "${beat.dialogue}"`;
-    }
-
-    contents.push({ text: promptText });
-
-    // Create timeout signal
-    const { signal: timeoutSignal, cleanup } = createTimeoutSignal(
-      TIMEOUT_CONFIG.IMAGE_GENERATION,
-      signal
-    );
-
     const startTime = Date.now();
-    const refCount = contents.filter(c => c.inlineData).length;
-    console.log(`[AI Service] Starting image generation - Type: ${type}, References: ${refCount}, Model: ${MODEL_IMAGE_GEN_NAME}`);
-
-    try {
-        // Check if already aborted
-        if (timeoutSignal.aborted) {
-          console.warn("[AI Service] Image generation aborted before API call");
-          throw timeoutSignal.reason || new Error('Operation aborted');
-        }
-
-        const ai = getAI();
-        const res = await ai.models.generateContent({
-          model: MODEL_IMAGE_GEN_NAME,
-          contents: contents,
-          config: { imageConfig: { aspectRatio: '2:3' } }
-        });
+    
+    return retryWithBackoff(
+      async () => {
+        const contents: any[] = [];
         
-        const elapsed = Date.now() - startTime;
-        console.log(`[AI Service] Image generation API call completed in ${elapsed}ms`);
-        
-        const part = res.candidates?.[0]?.content?.parts?.find(p => p.inlineData);
-        if (part?.inlineData?.data) {
-          const sizeKB = Math.round(part.inlineData.data.length * BASE64_TO_BINARY_RATIO / 1024);
-          console.log(`[AI Service] Image generated successfully - Size: ~${sizeKB}KB`);
-          return `data:${part.inlineData.mimeType};base64,${part.inlineData.data}`;
+        // 1. Hero References (multiple images if available)
+        if (hero?.images && hero.images.length > 0) {
+            // Use all available hero images for better character consistency
+            hero.images.forEach((img, i) => {
+                contents.push({ text: `REFERENCE [HERO ${i === 0 ? 'PRIMARY' : `ANGLE ${i}`}]:` });
+                contents.push({ inlineData: { mimeType: 'image/jpeg', data: img } });
+            });
+        } else if (hero?.base64) {
+            // Fallback for backward compatibility
+            contents.push({ text: "REFERENCE [HERO]:" });
+            contents.push({ inlineData: { mimeType: 'image/jpeg', data: hero.base64 } });
         }
         
-        console.error("[AI Service] No image data in API response", { candidates: res.candidates });
-        return '';
-    } catch (e) {
-        const elapsed = Date.now() - startTime;
-        console.error(`[AI Service] Image generation failed after ${elapsed}ms`, e);
-        throw e;
-    } finally {
-        cleanup();
-    }
+        // 2. Co-Star References (multiple images if available)
+        if (friend?.images && friend.images.length > 0) {
+            // Use all available co-star images for better character consistency
+            friend.images.forEach((img, i) => {
+                contents.push({ text: `REFERENCE [CO-STAR ${i === 0 ? 'PRIMARY' : `ANGLE ${i}`}]:` });
+                contents.push({ inlineData: { mimeType: 'image/jpeg', data: img } });
+            });
+        } else if (friend?.base64) {
+            // Fallback for backward compatibility
+            contents.push({ text: "REFERENCE [CO-STAR]:" });
+            contents.push({ inlineData: { mimeType: 'image/jpeg', data: friend.base64 } });
+        }
+        
+        // 3. World References (Max 3)
+        if (world?.images && world.images.length > 0) {
+            world.images.forEach((img, i) => {
+                contents.push({ text: `REFERENCE [WORLD ENVIRONMENT ${i+1}]:` });
+                contents.push({ inlineData: { mimeType: 'image/jpeg', data: img } });
+            });
+        }
+
+        const styleEra = config.genre === 'Custom' ? "Modern American" : config.genre;
+        let promptText = `STYLE: ${styleEra} comic book art, detailed ink, vibrant colors. `;
+        
+        if (type === 'cover') {
+            const langName = LANGUAGES.find(l => l.code === config.language)?.name || "English";
+            promptText += `TYPE: Comic Book Cover. TITLE: "INFINITE HEROES" (OR LOCALIZED TRANSLATION IN ${langName.toUpperCase()}). Main visual: Dynamic action shot of [HERO] (Use ALL REFERENCE [HERO] images to ensure character consistency).`;
+            if (world) {
+                promptText += ` BACKGROUND: Must match REFERENCE [WORLD ENVIRONMENT] strictly. Setting: ${world.name}.`;
+            }
+        } else if (type === 'back_cover') {
+            promptText += `TYPE: Comic Back Cover. FULL PAGE VERTICAL ART. Dramatic teaser. Text: "NEXT ISSUE SOON".`;
+        } else {
+            promptText += `TYPE: Vertical comic panel. SCENE: ${beat.scene}. `;
+            promptText += `INSTRUCTIONS: Maintain strict character likeness using ALL provided reference images. If scene mentions 'HERO', you MUST use ALL REFERENCE [HERO] images. If scene mentions 'CO-STAR' or 'SIDEKICK', you MUST use ALL REFERENCE [CO-STAR] images.`;
+            if (world) {
+                promptText += ` BACKGROUND: Must match REFERENCE [WORLD ENVIRONMENT] aesthetic. Setting: ${world.name}.`;
+            }
+            if (beat.caption) promptText += ` INCLUDE CAPTION BOX: "${beat.caption}"`;
+            if (beat.dialogue) promptText += ` INCLUDE SPEECH BUBBLE: "${beat.dialogue}"`;
+        }
+
+        contents.push({ text: promptText });
+
+        // Create timeout signal
+        const { signal: timeoutSignal, cleanup } = createTimeoutSignal(
+          TIMEOUT_CONFIG.IMAGE_GENERATION,
+          signal
+        );
+
+        const refCount = contents.filter(c => c.inlineData).length;
+        console.log(`[AI Service] Starting image generation - Type: ${type}, References: ${refCount}, Model: ${MODEL_IMAGE_GEN_NAME}`);
+
+        try {
+            // Check if already aborted
+            if (timeoutSignal.aborted) {
+              console.warn("[AI Service] Image generation aborted before API call");
+              throw timeoutSignal.reason || new Error('Operation aborted');
+            }
+
+            const ai = getAI();
+            const res = await ai.models.generateContent({
+              model: MODEL_IMAGE_GEN_NAME,
+              contents: contents,
+              config: { imageConfig: { aspectRatio: '2:3' } }
+            });
+            
+            const elapsed = Date.now() - startTime;
+            console.log(`[AI Service] Image generation API call completed in ${elapsed}ms`);
+            
+            const part = res.candidates?.[0]?.content?.parts?.find(p => p.inlineData);
+            if (part?.inlineData?.data) {
+              const sizeKB = Math.round(part.inlineData.data.length * BASE64_TO_BINARY_RATIO / 1024);
+              console.log(`[AI Service] Image generated successfully - Size: ~${sizeKB}KB`);
+              return `data:${part.inlineData.mimeType};base64,${part.inlineData.data}`;
+            }
+            
+            console.error("[AI Service] No image data in API response", { candidates: res.candidates });
+            return '';
+        } catch (e) {
+            const elapsed = Date.now() - startTime;
+            console.error(`[AI Service] Image generation failed after ${elapsed}ms`, e);
+            throw e;
+        } finally {
+            cleanup();
+        }
+      },
+      {
+        maxRetries: 2,
+        initialDelay: 2000,
+        onRetry: (attempt, error) => {
+          console.warn(`[AI Service] Image generation retry attempt ${attempt}:`, error.message);
+        }
+      }
+    );
   }
 };
