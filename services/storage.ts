@@ -5,7 +5,7 @@
 */
 
 import { openDB, DBSchema, IDBPDatabase } from 'idb';
-import { Persona, World } from '../types';
+import { ModelPreset, Persona, World } from '../types';
 
 interface HeroesDB extends DBSchema {
   heroes: {
@@ -16,24 +16,32 @@ interface HeroesDB extends DBSchema {
     key: string;
     value: World & { timestamp: number };
   };
+  presets: {
+    key: string;
+    value: ModelPreset;
+  };
 }
 
 const DB_NAME = 'infinite-heroes-db';
-const STORE_HEROES = 'heroes'; 
+const STORE_HEROES = 'heroes';
 const STORE_WORLDS = 'worlds';
+const STORE_PRESETS = 'presets';
 
 let dbPromise: Promise<IDBPDatabase<HeroesDB>>;
 let rootHandle: any | null = null; // FileSystemDirectoryHandle
 
 const initDB = () => {
   if (!dbPromise) {
-    dbPromise = openDB<HeroesDB>(DB_NAME, 2, {
-      upgrade(db, _oldVersion, _newVersion, _transaction) {
+    dbPromise = openDB<HeroesDB>(DB_NAME, 3, {
+      upgrade(db, oldVersion) {
         if (!db.objectStoreNames.contains(STORE_HEROES)) {
           db.createObjectStore(STORE_HEROES, { keyPath: 'id' });
         }
         if (!db.objectStoreNames.contains(STORE_WORLDS)) {
           db.createObjectStore(STORE_WORLDS, { keyPath: 'id' });
+        }
+        if (oldVersion < 3 && !db.objectStoreNames.contains(STORE_PRESETS)) {
+          db.createObjectStore(STORE_PRESETS, { keyPath: 'id' });
         }
       },
     });
@@ -97,6 +105,7 @@ export const StorageService = {
         // Ensure structure
         await getSubDir('characters');
         await getSubDir('worlds');
+        await getSubDir('presets');
         return true;
     } catch (e) {
         console.log("User cancelled folder picker or error", e);
@@ -303,5 +312,85 @@ export const StorageService = {
     }
     const db = await initDB();
     await db.delete(STORE_WORLDS, id);
+  },
+
+  // --- MODEL PRESETS ---
+  async saveModelPreset(preset: ModelPreset): Promise<void> {
+    const payload = { ...preset, updatedAt: preset.updatedAt || Date.now() };
+
+    if (rootHandle) {
+        const dir = await getSubDir('presets');
+        if (dir) {
+            await writeToFile(dir, `${payload.id}.json`, payload);
+        }
+    }
+
+    const db = await initDB();
+    await db.put(STORE_PRESETS, payload);
+  },
+
+  async getModelPresets(): Promise<ModelPreset[]> {
+    let fsItems: ModelPreset[] = [];
+    let idbItems: ModelPreset[] = [];
+    let idbError: unknown = null;
+
+    if (rootHandle) {
+        try {
+            const dir = await getSubDir('presets');
+            if (dir) fsItems = await readFiles<ModelPreset>(dir);
+        } catch (e) {
+            console.error('Failed to read presets from file system:', e);
+        }
+    }
+
+    try {
+        const db = await initDB();
+        idbItems = await db.getAll(STORE_PRESETS);
+    } catch (e) {
+        console.error('Failed to read presets from IndexedDB:', e);
+        idbError = e;
+    }
+
+    const normalize = (item: any): ModelPreset | null => {
+        if (!item?.id || !item?.name || !item?.model) return null;
+        return {
+            id: String(item.id),
+            name: String(item.name),
+            model: String(item.model),
+            prompt: String(item.prompt || ''),
+            isDefault: Boolean(item.isDefault),
+            updatedAt: Number(item.updatedAt || 0),
+        };
+    };
+
+    const mergedMap = new Map<string, ModelPreset>();
+    idbItems.forEach((item) => {
+        const normalized = normalize(item);
+        if (normalized) mergedMap.set(normalized.id, normalized);
+    });
+    fsItems.forEach((item) => {
+        const normalized = normalize(item);
+        if (normalized) mergedMap.set(normalized.id, normalized);
+    });
+
+    const items = Array.from(mergedMap.values());
+    if (!items.length && idbError) {
+        throw idbError;
+    }
+
+    return items.sort((a, b) => (b.updatedAt || 0) - (a.updatedAt || 0));
+  },
+
+  async deleteModelPreset(id: string): Promise<void> {
+    if (rootHandle) {
+        const dir = await getSubDir('presets');
+        if (dir) {
+            try {
+                await dir.removeEntry(`${id}.json`);
+            } catch (e) { console.warn('FS Delete error', e); }
+        }
+    }
+    const db = await initDB();
+    await db.delete(STORE_PRESETS, id);
   }
 };

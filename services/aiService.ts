@@ -120,6 +120,7 @@ export const AiService = {
   ): Promise<Beat> {
     const isFinalPage = pageNum === MAX_STORY_PAGES;
     const langName = LANGUAGES.find(l => l.code === config.language)?.name || "English";
+    const textModel = config.modelPresetModel || MODEL_TEXT_NAME;
 
     // Get relevant history
     const relevantHistory = history
@@ -171,6 +172,9 @@ export const AiService = {
 
     // Base Instruction
     let instruction = `Continue the story. ALL OUTPUT TEXT (Captions, Dialogue, Choices) MUST BE IN ${langName.toUpperCase()}. ${coreDriver}`;
+    if (config.modelPresetPrompt) {
+        instruction += ` PRESET GUIDANCE: ${config.modelPresetPrompt}`;
+    }
     if (config.richMode) {
         instruction += " RICH/NOVEL MODE ENABLED. Prioritize deeper character thoughts, descriptive captions, and meaningful dialogue exchanges over short punchlines.";
     }
@@ -233,8 +237,8 @@ OUTPUT STRICT JSON ONLY (No markdown formatting):
         }
 
         const ai = getAI();
-        const res = await ai.models.generateContent({
-            model: MODEL_TEXT_NAME,
+    const res = await ai.models.generateContent({
+            model: textModel,
             contents: prompt,
             config: { responseMimeType: 'application/json' }
         });

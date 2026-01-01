@@ -89,6 +89,18 @@ export interface StoryConfig {
   customPremise: string;
   openingPrompt: string; // New: User defines the start
   richMode: boolean;
+  modelPresetId: string;
+  modelPresetModel: string;
+  modelPresetPrompt: string;
+}
+
+export interface ModelPreset {
+  id: string;
+  name: string;
+  model: string;
+  prompt: string;
+  isDefault?: boolean;
+  updatedAt: number;
 }
 
 export interface LoadingProgress {
