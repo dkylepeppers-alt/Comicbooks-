@@ -19,6 +19,39 @@ import {
 const MODEL_IMAGE_GEN_NAME = "gemini-3-pro-image-preview";
 const MODEL_TEXT_NAME = "gemini-3-flash-preview";
 
+// True LRU cache for beat generation to avoid regenerating same content
+const beatCache = new Map<string, { beat: Beat; timestamp: number }>();
+const BEAT_CACHE_MAX_SIZE = 20;
+const BEAT_CACHE_TTL = 5 * 60 * 1000; // 5 minutes
+
+const getCachedBeat = (key: string): Beat | null => {
+  const cached = beatCache.get(key);
+  if (!cached) return null;
+  
+  // Check if cache is still valid
+  if (Date.now() - cached.timestamp > BEAT_CACHE_TTL) {
+    beatCache.delete(key);
+    return null;
+  }
+  
+  // Move to end for LRU (re-insert)
+  beatCache.delete(key);
+  beatCache.set(key, cached);
+  
+  return cached.beat;
+};
+
+const setCachedBeat = (key: string, beat: Beat): void => {
+  // True LRU: if at max capacity, remove least recently used (first entry) before adding
+  if (beatCache.size >= BEAT_CACHE_MAX_SIZE) {
+    const firstKey = beatCache.keys().next().value;
+    if (firstKey) beatCache.delete(firstKey);
+  }
+  
+  // Add new entry at the end (most recently used)
+  beatCache.set(key, { beat, timestamp: Date.now() });
+};
+
 const getAI = () => {
   if (!navigator.onLine) {
     throw new Error("OFFLINE: Please check your internet connection.");
@@ -118,6 +151,18 @@ export const AiService = {
     userGuidance?: string, // Direct user control
     signal?: AbortSignal // AbortSignal for cancellation/timeout
   ): Promise<Beat> {
+    // Create cache key from page number and history length
+    // Only cache when no user guidance (deterministic generation)
+    const cacheKey = !userGuidance ? `beat-${pageNum}-${history.length}-${config.genre}-${config.language}` : null;
+    
+    // Check cache first if no user guidance
+    if (cacheKey) {
+      const cached = getCachedBeat(cacheKey);
+      if (cached) {
+        return cached;
+      }
+    }
+
     const isFinalPage = pageNum === MAX_STORY_PAGES;
     const langName = LANGUAGES.find(l => l.code === config.language)?.name || "English";
     const textModel = config.modelPresetModel || MODEL_TEXT_NAME;
@@ -271,6 +316,11 @@ OUTPUT STRICT JSON ONLY (No markdown formatting):
         if (!isDecisionPage) parsed.choices = [];
         if (isDecisionPage && !isFinalPage && (!parsed.choices || parsed.choices.length < 2)) parsed.choices = ["Option A", "Option B"];
         if (!['hero', 'friend', 'other'].includes(parsed.focus_char)) parsed.focus_char = 'hero';
+
+        // Cache the result if applicable
+        if (cacheKey) {
+          setCachedBeat(cacheKey, parsed);
+        }
 
         return parsed;
     } catch (e) {

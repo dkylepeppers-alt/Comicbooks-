@@ -88,6 +88,8 @@ function reducer(state: ComicState, action: ComicAction): ComicState {
     case 'ADD_FACES': {
       const existingIds = new Set(state.comicFaces.map(f => f.id));
       const uniqueNew = action.payload.filter(f => !existingIds.has(f.id));
+      // Only sort if we actually added new faces
+      if (uniqueNew.length === 0) return state;
       return {
         ...state,
         comicFaces: [...state.comicFaces, ...uniqueNew].sort((a, b) => (a.pageIndex || 0) - (b.pageIndex || 0)) 
@@ -107,7 +109,12 @@ function reducer(state: ComicState, action: ComicAction): ComicState {
     case 'SET_ERROR':
       return { ...state, error: action.payload, loadingProgress: null };
     case 'ADD_NOTIFICATION':
-      return { ...state, notifications: [...state.notifications, action.payload] };
+      // Limit total notifications to prevent memory issues (keep last 10)
+      const newNotifications = [...state.notifications, action.payload];
+      if (newNotifications.length > 10) {
+        newNotifications.shift(); // Remove oldest
+      }
+      return { ...state, notifications: newNotifications };
     case 'REMOVE_NOTIFICATION':
       return { ...state, notifications: state.notifications.filter(n => n.id !== action.payload) };
     case 'CLEAR_NOTIFICATIONS':

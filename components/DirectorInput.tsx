@@ -12,13 +12,15 @@ interface DirectorInputProps {
     isGenerating?: boolean;
 }
 
-export const DirectorInput: React.FC<DirectorInputProps> = ({ onContinue, isGenerating = false }) => {
+export const DirectorInput: React.FC<DirectorInputProps> = React.memo(({ onContinue, isGenerating = false }) => {
     const [instruction, setInstruction] = useState("");
     const { state } = useBook();
 
-    const heroName = state.hero?.name?.trim() || 'your hero';
-    const friendName = state.friend?.name?.trim() || 'your sidekick';
-    const setting = state.currentWorld?.name?.trim() || state.config.genre || 'the city';
+    // Memoize these values to prevent recalculation on every render
+    const heroName = useMemo(() => state.hero?.name?.trim() || 'your hero', [state.hero?.name]);
+    const friendName = useMemo(() => state.friend?.name?.trim() || 'your sidekick', [state.friend?.name]);
+    const setting = useMemo(() => state.currentWorld?.name?.trim() || state.config.genre || 'the city', 
+      [state.currentWorld?.name, state.config.genre]);
 
     const lastStoryFace = useMemo(() => {
         const storyFaces = state.comicFaces
@@ -100,4 +102,4 @@ export const DirectorInput: React.FC<DirectorInputProps> = ({ onContinue, isGene
              </div>
         </div>
     );
-};
+});

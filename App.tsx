@@ -4,9 +4,8 @@
  * SPDX-License-Identifier: Apache-2.0
 */
 
-import React from 'react';
+import React, { Suspense, lazy } from 'react';
 import { ApiKeyDialog } from './ApiKeyDialog';
-import { Book } from './Book';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { GlobalLoadingIndicator } from './components/GlobalLoadingIndicator';
 import { NotificationToast } from './components/NotificationToast';
@@ -15,9 +14,13 @@ import { TopBar } from './components/TopBar';
 import { BookProvider, useBook } from './context/BookContext';
 import { ModelPresetProvider } from './context/ModelPresetContext';
 import { SettingsProvider } from './context/SettingsContext';
-import { Setup } from './Setup';
 import { Persona } from './types';
 import { useApiKey } from './useApiKey';
+import { compressImage, estimateBase64Size, formatBytes } from './utils/imageCompression';
+
+// Lazy load heavy components for better code splitting
+const Book = lazy(() => import('./Book').then(m => ({ default: m.Book })));
+const Setup = lazy(() => import('./Setup').then(m => ({ default: m.Setup })));
 
 const AppContent: React.FC = () => {
   const { state, actions } = useBook();
@@ -67,35 +70,26 @@ const AppContent: React.FC = () => {
       return;
     }
 
-    const reader = new FileReader();
+    try {
+      // Compress image for better performance
+      const base64 = await compressImage(file, 1024, 1024, 0.85);
+      
+      if (!base64) {
+        throw new Error('Failed to process image data');
+      }
 
-    reader.onload = () => {
-        try {
-          const result = reader.result as string;
-          const base64 = result.split(',')[1] ?? '';
+      const compressedSize = estimateBase64Size(base64);
+      const existing: Partial<Persona> = state.hero || {};
+      actions.setHero({
+          base64,
+          name: existing.name || "",
+          description: existing.description || ""
+      });
 
-          if (!base64) {
-            throw new Error('Failed to process image data');
-          }
-
-          const existing: Partial<Persona> = state.hero || {};
-          actions.setHero({
-              base64,
-              name: existing.name || "",
-              description: existing.description || ""
-          });
-
-          actions.addNotification('success', 'Hero image uploaded successfully!', 3000);
-        } catch (error) {
-          actions.addNotification('error', `Error processing image: ${error instanceof Error ? error.message : 'Unknown error'}`);
-        }
-    };
-
-    reader.onerror = () => {
-      actions.addNotification('error', 'Failed to read the image file. Please try again.');
-    };
-
-    reader.readAsDataURL(file);
+      actions.addNotification('success', `Hero image uploaded! (${formatBytes(compressedSize)})`, 3000);
+    } catch (error) {
+      actions.addNotification('error', `Error processing image: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
   };
 
   const handleFriendUpload = async (file: File) => {
@@ -112,35 +106,26 @@ const AppContent: React.FC = () => {
       return;
     }
 
-    const reader = new FileReader();
+    try {
+      // Compress image for better performance
+      const base64 = await compressImage(file, 1024, 1024, 0.85);
+      
+      if (!base64) {
+        throw new Error('Failed to process image data');
+      }
 
-    reader.onload = () => {
-        try {
-          const result = reader.result as string;
-          const base64 = result.split(',')[1] ?? '';
+      const compressedSize = estimateBase64Size(base64);
+      const existing: Partial<Persona> = state.friend || {};
+      actions.setFriend({
+          base64,
+          name: existing.name || "",
+          description: existing.description || ""
+      });
 
-          if (!base64) {
-            throw new Error('Failed to process image data');
-          }
-
-          const existing: Partial<Persona> = state.friend || {};
-          actions.setFriend({
-              base64,
-              name: existing.name || "",
-              description: existing.description || ""
-          });
-
-          actions.addNotification('success', 'Sidekick image uploaded successfully!', 3000);
-        } catch (error) {
-          actions.addNotification('error', `Error processing image: ${error instanceof Error ? error.message : 'Unknown error'}`);
-        }
-    };
-
-    reader.onerror = () => {
-      actions.addNotification('error', 'Failed to read the image file. Please try again.');
-    };
-
-    reader.readAsDataURL(file);
+      actions.addNotification('success', `Sidekick image uploaded! (${formatBytes(compressedSize)})`, 3000);
+    } catch (error) {
+      actions.addNotification('error', `Error processing image: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
   };
 
   return (
@@ -166,23 +151,27 @@ const AppContent: React.FC = () => {
           onDismiss={actions.removeNotification}
         />
 
-        <Setup
-            show={state.status === 'setup'}
-            isTransitioning={state.status === 'generating'}
-            hero={state.hero}
-            friend={state.friend}
-            config={state.config}
-            onHeroUpload={handleHeroUpload}
-            onFriendUpload={handleFriendUpload}
-            onHeroUpdate={actions.updateHero}
-            onFriendUpdate={actions.updateFriend}
-            onConfigChange={actions.updateConfig}
-            onLaunch={actions.launchStory}
-        />
+        <Suspense fallback={<div className="w-full h-full flex items-center justify-center"><div className="animate-spin text-4xl">⏳</div></div>}>
+          <Setup
+              show={state.status === 'setup'}
+              isTransitioning={state.status === 'generating'}
+              hero={state.hero}
+              friend={state.friend}
+              config={state.config}
+              onHeroUpload={handleHeroUpload}
+              onFriendUpload={handleFriendUpload}
+              onHeroUpdate={actions.updateHero}
+              onFriendUpdate={actions.updateFriend}
+              onConfigChange={actions.updateConfig}
+              onLaunch={actions.launchStory}
+          />
+        </Suspense>
 
         <GlobalLoadingIndicator />
 
-        <Book />
+        <Suspense fallback={<div className="w-full h-full flex items-center justify-center"><div className="animate-spin text-4xl">📖</div></div>}>
+          <Book />
+        </Suspense>
       </div>
     </div>
   );

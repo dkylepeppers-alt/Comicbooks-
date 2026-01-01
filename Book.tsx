@@ -14,7 +14,7 @@ import { TOTAL_PAGES } from './types';
 export const Book: React.FC = () => {
     const { state, actions } = useBook();
 
-    // Memoized map for faster lookup
+    // Memoized map for faster lookup - only recompute when faces change meaningfully
     const pageMap = useMemo(() => {
         const map = new Map<number, typeof state.comicFaces[number]>();
         state.comicFaces.forEach(face => {
@@ -25,11 +25,13 @@ export const Book: React.FC = () => {
         return map;
     }, [state.comicFaces]);
 
-    // PDF Generation
+    // PDF Generation - memoize heavy operations
     const downloadPDF = useCallback(() => {
         const PAGE_WIDTH = 480;
         const PAGE_HEIGHT = 720;
         const doc = new jsPDF({ orientation: 'portrait', unit: 'pt', format: [PAGE_WIDTH, PAGE_HEIGHT] });
+        
+        // Pre-filter and sort only completed pages
         const pagesToPrint = state.comicFaces
           .filter(face => face.imageUrl && !face.isLoading)
           .sort((a, b) => (a.pageIndex || 0) - (b.pageIndex || 0));
@@ -89,6 +91,12 @@ export const Book: React.FC = () => {
     // It should appear after the last generated page, IF we aren't at the end
     const isBookFinished = sheetsToRender.maxGeneratedPage >= TOTAL_PAGES;
 
+    // Pre-calculate isGenerating once instead of inside the loop
+    const isGenerating = useMemo(() => 
+      state.loadingProgress !== null || state.comicFaces.some(face => face.isLoading),
+      [state.loadingProgress, state.comicFaces]
+    );
+
     // Logic: If the last sheet has a back page that is rendered, we need a new sheet for Director
     // If the last sheet has a front page but no back, the Director goes on the back.
     
@@ -123,9 +131,6 @@ export const Book: React.FC = () => {
               // 2. Back doesn't exist
               // 3. Not finished
               const showDirectorBack = sheet.front && !sheet.back && !isBookFinished && sheetsToRender.maxGeneratedPage < backPageNum;
-
-              // Check if currently generating to disable director input
-              const isGenerating = state.loadingProgress !== null || state.comicFaces.some(face => face.isLoading);
 
               return (
                   <div key={i} className={`paper ${i < state.currentSheetIndex ? 'flipped' : ''}`} style={{ zIndex: i < state.currentSheetIndex ? i : sheetsToRender.sheets.length - i }}>
