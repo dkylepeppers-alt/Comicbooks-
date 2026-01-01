@@ -7,6 +7,14 @@
 import { openDB, DBSchema, IDBPDatabase } from 'idb';
 import { ModelPreset, Persona, World } from '../types';
 
+// Custom error class for permission-related errors
+class PermissionError extends Error {
+  constructor(message: string, public readonly resource: string) {
+    super(message);
+    this.name = 'PermissionError';
+  }
+}
+
 interface HeroesDB extends DBSchema {
   heroes: {
     key: string;
@@ -83,11 +91,10 @@ const getSubDir = async (name: string) => {
     return await rootHandle.getDirectoryHandle(name, { create: true });
   } catch (e) {
     console.error(`FS Error getting subdir "${name}":`, e);
-    // Check if it's a permission error
-    const errorStr = String(e);
-    if (errorStr.includes('NotAllowedError') || errorStr.includes('SecurityError')) {
-      // Permission denied - throw to let caller handle
-      throw new Error(`Permission denied accessing "${name}" directory. Please reconnect your library.`);
+    // Check if it's a permission error using proper type checking
+    if (e instanceof DOMException && (e.name === 'NotAllowedError' || e.name === 'SecurityError')) {
+      // Permission denied - throw custom error to let caller handle
+      throw new PermissionError(`Permission denied accessing "${name}" directory. Please reconnect your library.`, name);
     }
     // For other errors, return null to fall back to IndexedDB
     return null;
@@ -270,8 +277,7 @@ export const StorageService = {
             console.error("Failed to read characters from file system:", e);
             fsError = e;
             // If it's a permission error, we should propagate it but still try IDB
-            const errorStr = String(e);
-            if (errorStr.includes('Permission denied')) {
+            if (e instanceof PermissionError) {
               console.warn("File system permission lost. Attempting to read from IndexedDB backup.");
             }
         }
@@ -340,8 +346,7 @@ export const StorageService = {
       } else if (fsError && rootHandle) {
         // File system failed but IDB succeeded (though returned no items)
         console.warn('File system access failed, using IndexedDB only');
-        const errorStr = String(fsError);
-        if (errorStr.includes('Permission denied')) {
+        if (fsError instanceof PermissionError) {
           throw new Error('Lost access to your library folder. Please reconnect to restore file system characters.');
         }
       } else if (idbError) {
@@ -402,8 +407,7 @@ export const StorageService = {
             console.error("Failed to read worlds from file system:", e);
             fsError = e;
             // If it's a permission error, we should propagate it but still try IDB
-            const errorStr = String(e);
-            if (errorStr.includes('Permission denied')) {
+            if (e instanceof PermissionError) {
               console.warn("File system permission lost. Attempting to read from IndexedDB backup.");
             }
         }
@@ -464,8 +468,7 @@ export const StorageService = {
       } else if (fsError && rootHandle) {
         // File system failed but IDB succeeded (though returned no items)
         console.warn('File system access failed, using IndexedDB only');
-        const errorStr = String(fsError);
-        if (errorStr.includes('Permission denied')) {
+        if (fsError instanceof PermissionError) {
           throw new Error('Lost access to your library folder. Please reconnect to restore file system worlds.');
         }
       } else if (idbError) {
@@ -539,8 +542,7 @@ export const StorageService = {
         } catch (e) {
             console.error('Failed to read presets from file system:', e);
             fsError = e;
-            const errorStr = String(e);
-            if (errorStr.includes('Permission denied')) {
+            if (e instanceof PermissionError) {
               console.warn("File system permission lost. Attempting to read from IndexedDB backup.");
             }
         }
@@ -585,8 +587,7 @@ export const StorageService = {
       } else if (fsError && rootHandle) {
         // File system failed but IDB succeeded (though returned no items)
         console.warn('File system access failed, using IndexedDB only');
-        const errorStr = String(fsError);
-        if (errorStr.includes('Permission denied')) {
+        if (fsError instanceof PermissionError) {
           throw new Error('Lost access to your library folder. Please reconnect to restore file system presets.');
         }
       } else if (idbError) {
