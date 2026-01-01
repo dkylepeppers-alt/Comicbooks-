@@ -57,7 +57,8 @@ export interface Beat {
 }
 
 export interface Persona {
-  base64: string;
+  base64: string; // Primary/first image for backward compatibility
+  images?: string[]; // Optional: All images including primary (Max 3 for Gemini 3 Pro)
   name: string;
   description: string;
 }

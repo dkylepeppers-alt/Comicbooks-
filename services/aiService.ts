@@ -342,16 +342,32 @@ OUTPUT STRICT JSON ONLY (No markdown formatting):
   ): Promise<string> {
     const contents: any[] = [];
     
-    // 1. Hero Reference
-    if (hero?.base64) {
+    // 1. Hero References (multiple images if available)
+    if (hero?.images && hero.images.length > 0) {
+        // Use all available hero images for better character consistency
+        hero.images.forEach((img, i) => {
+            contents.push({ text: `REFERENCE [HERO ${i === 0 ? 'PRIMARY' : `ANGLE ${i}`}]:` });
+            contents.push({ inlineData: { mimeType: 'image/jpeg', data: img } });
+        });
+    } else if (hero?.base64) {
+        // Fallback for backward compatibility
         contents.push({ text: "REFERENCE [HERO]:" });
         contents.push({ inlineData: { mimeType: 'image/jpeg', data: hero.base64 } });
     }
-    // 2. Co-Star Reference
-    if (friend?.base64) {
+    
+    // 2. Co-Star References (multiple images if available)
+    if (friend?.images && friend.images.length > 0) {
+        // Use all available co-star images for better character consistency
+        friend.images.forEach((img, i) => {
+            contents.push({ text: `REFERENCE [CO-STAR ${i === 0 ? 'PRIMARY' : `ANGLE ${i}`}]:` });
+            contents.push({ inlineData: { mimeType: 'image/jpeg', data: img } });
+        });
+    } else if (friend?.base64) {
+        // Fallback for backward compatibility
         contents.push({ text: "REFERENCE [CO-STAR]:" });
         contents.push({ inlineData: { mimeType: 'image/jpeg', data: friend.base64 } });
     }
+    
     // 3. World References (Max 3)
     if (world?.images && world.images.length > 0) {
         world.images.forEach((img, i) => {
@@ -365,7 +381,7 @@ OUTPUT STRICT JSON ONLY (No markdown formatting):
     
     if (type === 'cover') {
         const langName = LANGUAGES.find(l => l.code === config.language)?.name || "English";
-        promptText += `TYPE: Comic Book Cover. TITLE: "INFINITE HEROES" (OR LOCALIZED TRANSLATION IN ${langName.toUpperCase()}). Main visual: Dynamic action shot of [HERO] (Use REFERENCE [HERO]).`;
+        promptText += `TYPE: Comic Book Cover. TITLE: "INFINITE HEROES" (OR LOCALIZED TRANSLATION IN ${langName.toUpperCase()}). Main visual: Dynamic action shot of [HERO] (Use ALL REFERENCE [HERO] images to ensure character consistency).`;
         if (world) {
             promptText += ` BACKGROUND: Must match REFERENCE [WORLD ENVIRONMENT] strictly. Setting: ${world.name}.`;
         }
@@ -373,7 +389,7 @@ OUTPUT STRICT JSON ONLY (No markdown formatting):
         promptText += `TYPE: Comic Back Cover. FULL PAGE VERTICAL ART. Dramatic teaser. Text: "NEXT ISSUE SOON".`;
     } else {
         promptText += `TYPE: Vertical comic panel. SCENE: ${beat.scene}. `;
-        promptText += `INSTRUCTIONS: Maintain strict character likeness. If scene mentions 'HERO', you MUST use REFERENCE [HERO]. If scene mentions 'CO-STAR' or 'SIDEKICK', you MUST use REFERENCE [CO-STAR].`;
+        promptText += `INSTRUCTIONS: Maintain strict character likeness using ALL provided reference images. If scene mentions 'HERO', you MUST use ALL REFERENCE [HERO] images. If scene mentions 'CO-STAR' or 'SIDEKICK', you MUST use ALL REFERENCE [CO-STAR] images.`;
         if (world) {
             promptText += ` BACKGROUND: Must match REFERENCE [WORLD ENVIRONMENT] aesthetic. Setting: ${world.name}.`;
         }

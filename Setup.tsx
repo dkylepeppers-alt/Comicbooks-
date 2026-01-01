@@ -6,6 +6,7 @@
 
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { WorldBuilder } from './components/WorldBuilder';
+import { CharacterBuilder } from './components/CharacterBuilder';
 import { useBook } from './context/BookContext';
 import { useModelPresets } from './context/ModelPresetContext';
 import { usePWA } from './hooks/usePWA';
@@ -117,6 +118,9 @@ export const Setup: React.FC<SetupProps> = (props) => {
     const { addNotification, loadWorlds } = actions;
     const [savedCharacters, setSavedCharacters] = useState<(Persona & {id:string})[]>([]);
     const [showWorldBuilder, setShowWorldBuilder] = useState(false);
+    const [editingWorld, setEditingWorld] = useState<World | null>(null);
+    const [showCharacterBuilder, setShowCharacterBuilder] = useState(false);
+    const [editingCharacter, setEditingCharacter] = useState<(Persona & {id:string}) | null>(null);
     const [isOnline, setIsOnline] = useState(navigator.onLine);
     const { presets, getPresetById } = useModelPresets();
     const [libraryRestored, setLibraryRestored] = useState(false);
@@ -292,11 +296,57 @@ export const Setup: React.FC<SetupProps> = (props) => {
                 actions.addNotification('success', `World "${world.name}" saved successfully!`, 3000);
                 actions.setWorld(world);
                 setShowWorldBuilder(false);
+                setEditingWorld(null);
             })
             .catch((error: Error) => {
                 console.error('Failed to save world:', error);
                 actions.addNotification('error', 'Failed to save world. Please try again.');
             });
+    };
+
+    const handleEditWorld = (world: World) => {
+        setEditingWorld(world);
+        setShowWorldBuilder(true);
+    };
+
+    const handleSaveCharacter = async (character: Persona & { id?: string }) => {
+        try {
+            // Save with existing ID if editing, otherwise create new
+            await StorageService.saveCharacter(character, character.id);
+            actions.addNotification('success', `Character "${character.name}" saved successfully!`, 3000);
+            
+            // Refresh the library to show updated character
+            await refreshLibrary();
+            
+            // Close the builder
+            setShowCharacterBuilder(false);
+            setEditingCharacter(null);
+        } catch (error) {
+            console.error('Failed to save character:', error);
+            actions.addNotification('error', 'Failed to save character. Please try again.');
+        }
+    };
+
+    const handleEditCharacter = (character: Persona & {id:string}) => {
+        setEditingCharacter(character);
+        setShowCharacterBuilder(true);
+    };
+
+    const handleDeleteCharacter = async (id: string) => {
+        try {
+            await StorageService.deleteCharacter(id);
+            actions.addNotification('success', 'Character deleted successfully', 3000);
+            
+            // Refresh library to update the list
+            await refreshLibrary();
+            
+            // Close the builder
+            setShowCharacterBuilder(false);
+            setEditingCharacter(null);
+        } catch (error) {
+            console.error('Failed to delete character:', error);
+            actions.addNotification('error', 'Failed to delete character. Please try again.');
+        }
     };
 
     const handleConnectStorage = async () => {
@@ -337,11 +387,28 @@ export const Setup: React.FC<SetupProps> = (props) => {
 
     return (
         <>
+        {showCharacterBuilder && (
+            <CharacterBuilder
+                existingCharacter={editingCharacter}
+                onSave={handleSaveCharacter}
+                onDelete={handleDeleteCharacter}
+                onCancel={() => {
+                    setShowCharacterBuilder(false);
+                    setEditingCharacter(null);
+                }}
+                addNotification={actions.addNotification}
+            />
+        )}
+
         {showWorldBuilder && (
             <WorldBuilder
+                existingWorld={editingWorld}
                 savedHeroes={savedCharacters}
                 onSave={handleSaveWorld}
-                onCancel={() => setShowWorldBuilder(false)}
+                onCancel={() => {
+                    setShowWorldBuilder(false);
+                    setEditingWorld(null);
+                }}
                 addNotification={actions.addNotification}
             />
         )}
@@ -388,6 +455,17 @@ export const Setup: React.FC<SetupProps> = (props) => {
                     <SectionCard
                       title="1. The Cast"
                       subtitle="Upload and describe your leads."
+                      actions={
+                        <button 
+                            onClick={() => {
+                                setEditingCharacter(null);
+                                setShowCharacterBuilder(true);
+                            }} 
+                            className="text-xs bg-black text-white px-3 py-2 sm:px-2 sm:py-1 font-bold uppercase hover:bg-gray-800 touch-manipulation min-h-[44px] sm:min-h-0 flex items-center justify-center"
+                        >
+                            + NEW
+                        </button>
+                      }
                     >
                         <div className={`p-3 border-2 border-dashed ${props.hero ? 'border-green-500 bg-green-50' : 'border-blue-200 bg-blue-50'} transition-colors relative group rounded-md`}>
                             <div className="flex justify-between items-center mb-2 gap-2">
@@ -482,6 +560,25 @@ export const Setup: React.FC<SetupProps> = (props) => {
                                 </label>
                             )}
                         </div>
+
+                        {savedCharacters.length > 0 && (
+                            <div className="mt-2 p-3 border-2 border-gray-200 bg-gray-50 rounded-md">
+                                <p className="font-comic text-sm font-bold text-gray-700 mb-2">CHARACTER LIBRARY ({savedCharacters.length})</p>
+                                <div className="flex flex-wrap gap-2 max-h-32 overflow-y-auto">
+                                    {sortedCharacters.map(char => (
+                                        <button
+                                            key={char.id}
+                                            onClick={() => handleEditCharacter(char)}
+                                            className="px-2 py-1 border-2 border-black text-xs font-bold uppercase bg-white hover:bg-blue-100 transition-colors shadow-[2px_2px_0px_black] hover:shadow-[1px_1px_0px_black] active:shadow-none"
+                                            title={`Click to edit ${char.name}`}
+                                        >
+                                            ✏️ {char.name}
+                                        </button>
+                                    ))}
+                                </div>
+                                <p className="text-[10px] text-gray-500 mt-1">Click any character to edit details or add more reference images</p>
+                            </div>
+                        )}
                     </SectionCard>
 
                     <div className="flex flex-col gap-4">
@@ -518,7 +615,20 @@ export const Setup: React.FC<SetupProps> = (props) => {
                                                 </div>
                                             )}
                                         </div>
-                                        <button onClick={() => handleDeleteWorld(state.currentWorld!.id, state.currentWorld!.name)} className="text-[12px] text-red-500 underline self-end hover:text-red-700">Delete World</button>
+                                        <div className="flex gap-2 justify-end">
+                                            <button 
+                                                onClick={() => handleEditWorld(state.currentWorld!)} 
+                                                className="text-[12px] text-blue-500 underline hover:text-blue-700"
+                                            >
+                                                Edit World
+                                            </button>
+                                            <button 
+                                                onClick={() => handleDeleteWorld(state.currentWorld!.id, state.currentWorld!.name)} 
+                                                className="text-[12px] text-red-500 underline hover:text-red-700"
+                                            >
+                                                Delete World
+                                            </button>
+                                        </div>
                                     </div>
                                 ) : (
                                     <div className="flex-1 border-2 border-dashed border-gray-300 flex items-center justify-center text-center p-4 rounded">

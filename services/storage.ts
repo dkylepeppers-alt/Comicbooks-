@@ -230,9 +230,10 @@ export const StorageService = {
   },
 
   // --- CHARACTERS ---
-  async saveCharacter(persona: Persona): Promise<void> {
+  async saveCharacter(persona: Persona, existingId?: string): Promise<void> {
     if (!persona.name) return;
-    const id = persona.name.toLowerCase().replace(/\s+/g, '-');
+    // Use existing ID for updates, or generate new one for new characters
+    const id = existingId || persona.name.toLowerCase().replace(/\s+/g, '-');
     const data = { ...persona, id, timestamp: Date.now() };
 
     // Invalidate cache
@@ -251,6 +252,26 @@ export const StorageService = {
     // 2. Fallback IDB
     const db = await initDB();
     await db.put(STORE_HEROES, data);
+  },
+
+  async deleteCharacter(id: string): Promise<void> {
+    // Invalidate cache
+    charactersCache = null;
+    charactersCacheTimestamp = 0;
+    
+    // Try file system
+    if (rootHandle) {
+        const dir = await getSubDir('characters');
+        if (dir) {
+            try {
+                await dir.removeEntry(`${id}.json`);
+            } catch (e) { console.warn("FS Delete error", e); }
+        }
+    }
+    
+    // Also delete from IDB
+    const db = await initDB();
+    await db.delete(STORE_HEROES, id);
   },
 
   async getCharacters(): Promise<(Persona & { id: string })[]> {
