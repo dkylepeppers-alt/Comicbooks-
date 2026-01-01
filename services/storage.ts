@@ -59,13 +59,13 @@ const initDB = () => {
 
 // --- FILE SYSTEM HELPERS ---
 const getSubDir = async (name: string) => {
-    if (!rootHandle) return null;
-    try {
-        return await rootHandle.getDirectoryHandle(name, { create: true });
-    } catch (e) {
-        console.error("FS Error getting subdir", e);
-        return null;
-    }
+  if (!rootHandle) return null;
+  try {
+    return await rootHandle.getDirectoryHandle(name, { create: true });
+  } catch (e) {
+    console.error("FS Error getting subdir", e);
+    return null;
+  }
 };
 
 const writeToFile = async (dirHandle: any, filename: string, content: any) => {
@@ -113,6 +113,34 @@ const readFiles = async <T>(dirHandle: any): Promise<T[]> => {
     return results;
 };
 
+const ensureBaseStructure = async (handle: FileSystemDirectoryHandle) => {
+  try {
+    await handle.getDirectoryHandle('characters', { create: true });
+    await handle.getDirectoryHandle('worlds', { create: true });
+    await handle.getDirectoryHandle('presets', { create: true });
+    return true;
+  } catch (e) {
+    console.error('Failed to prepare base folder structure', e);
+    return false;
+  }
+};
+
+const persistConnectionHandle = async (handle: FileSystemDirectoryHandle) => {
+  try {
+    const db = await initDB();
+    await db.put(STORE_CONNECTIONS, { key: 'library-root', handle, timestamp: Date.now() });
+  } catch (e) {
+    console.warn('Connected to library but failed to persist handle. You may need to reconnect after reload.', e);
+  }
+};
+
+const verifyHandle = async (handle: FileSystemDirectoryHandle | null | undefined) => {
+  if (!handle) return false;
+  const hasAccess = await hasPermission(handle);
+  if (!hasAccess) return false;
+  return ensureBaseStructure(handle);
+};
+
 export const StorageService = {
   // --- CONNECTION ---
   async connectLocalLibrary(): Promise<boolean> {
@@ -121,15 +149,15 @@ export const StorageService = {
         return false;
     }
     try {
-        rootHandle = await (window as any).showDirectoryPicker();
-        // Ensure structure
-        await getSubDir('characters');
-        await getSubDir('worlds');
-        await getSubDir('presets');
-        const db = await initDB();
-        if (rootHandle) {
-            await db.put(STORE_CONNECTIONS, { key: 'library-root', handle: rootHandle, timestamp: Date.now() });
+        const handle = await (window as any).showDirectoryPicker();
+        const hasAccess = await verifyHandle(handle);
+        if (!hasAccess) {
+          alert('We could not get permission to that folder. Please try again.');
+          return false;
         }
+
+        rootHandle = handle;
+        await persistConnectionHandle(handle);
         return true;
     } catch (e) {
         console.log("User cancelled folder picker or error", e);
@@ -143,11 +171,8 @@ export const StorageService = {
     try {
         const db = await initDB();
         const saved = await db.get(STORE_CONNECTIONS, 'library-root');
-        if (saved?.handle && await hasPermission(saved.handle)) {
+        if (saved?.handle && await verifyHandle(saved.handle)) {
             rootHandle = saved.handle;
-            await getSubDir('characters');
-            await getSubDir('worlds');
-            await getSubDir('presets');
             return true;
         }
     } catch (e) {
@@ -160,6 +185,15 @@ export const StorageService = {
     const db = await initDB();
     await db.delete(STORE_CONNECTIONS, 'library-root');
     rootHandle = null;
+  },
+
+  async verifyActiveConnection(): Promise<boolean> {
+    if (!rootHandle) return false;
+    const stillValid = await verifyHandle(rootHandle);
+    if (!stillValid) {
+      await this.disconnectLibrary();
+    }
+    return stillValid;
   },
 
   // --- CHARACTERS ---

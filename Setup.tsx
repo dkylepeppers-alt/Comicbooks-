@@ -120,6 +120,7 @@ export const Setup: React.FC<SetupProps> = (props) => {
     const [isOnline, setIsOnline] = useState(navigator.onLine);
     const { presets, getPresetById } = useModelPresets();
     const [libraryRestored, setLibraryRestored] = useState(false);
+    const [hadLibraryAccess, setHadLibraryAccess] = useState(false);
 
     const refreshLibrary = React.useCallback(() => {
         StorageService.getCharacters()
@@ -144,6 +145,7 @@ export const Setup: React.FC<SetupProps> = (props) => {
                     }
                 }
                 setLibraryRestored(true);
+                setHadLibraryAccess(restored);
             })
             .catch((error) => {
                 console.warn('Library restore attempt failed', error);
@@ -154,11 +156,25 @@ export const Setup: React.FC<SetupProps> = (props) => {
     useEffect(() => {
         if (!libraryRestored) return;
 
-        refreshLibrary();
-        loadWorlds().catch((error: Error) => {
-            console.error('Failed to load worlds:', error);
-            addNotification('error', 'Failed to load saved worlds. Please try reconnecting your library.');
-        });
+        const verifyAndLoad = async () => {
+            try {
+                const stillConnected = await StorageService.verifyActiveConnection();
+                setHadLibraryAccess(prev => prev || stillConnected);
+                if (!stillConnected && hadLibraryAccess) {
+                    addNotification('warning', 'Lost access to your local library. Please reconnect.');
+                }
+            } catch (error) {
+                console.error('Failed to verify library connection', error);
+            }
+
+            refreshLibrary();
+            loadWorlds().catch((error: Error) => {
+                console.error('Failed to load worlds:', error);
+                addNotification('error', 'Failed to load saved worlds. Please try reconnecting your library.');
+            });
+        };
+
+        verifyAndLoad();
 
         const handleOnline = () => setIsOnline(true);
         const handleOffline = () => setIsOnline(false);
@@ -169,7 +185,7 @@ export const Setup: React.FC<SetupProps> = (props) => {
             window.removeEventListener('online', handleOnline);
             window.removeEventListener('offline', handleOffline);
         };
-    }, [props.show, loadWorlds, addNotification, refreshLibrary, libraryRestored]);
+    }, [props.show, loadWorlds, addNotification, refreshLibrary, libraryRestored, hadLibraryAccess]);
 
     useEffect(() => {
         if (props.hero?.name && props.hero.name.length > 2 && props.hero.base64) {
