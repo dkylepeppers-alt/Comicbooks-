@@ -91,6 +91,12 @@ export const Book: React.FC = () => {
     // It should appear after the last generated page, IF we aren't at the end
     const isBookFinished = sheetsToRender.maxGeneratedPage >= TOTAL_PAGES;
 
+    // Pre-calculate isGenerating once instead of inside the loop
+    const isGenerating = useMemo(() => 
+      state.loadingProgress !== null || state.comicFaces.some(face => face.isLoading),
+      [state.loadingProgress, state.comicFaces]
+    );
+
     // Logic: If the last sheet has a back page that is rendered, we need a new sheet for Director
     // If the last sheet has a front page but no back, the Director goes on the back.
     
@@ -125,9 +131,6 @@ export const Book: React.FC = () => {
               // 2. Back doesn't exist
               // 3. Not finished
               const showDirectorBack = sheet.front && !sheet.back && !isBookFinished && sheetsToRender.maxGeneratedPage < backPageNum;
-
-              // Check if currently generating to disable director input
-              const isGenerating = state.loadingProgress !== null || state.comicFaces.some(face => face.isLoading);
 
               return (
                   <div key={i} className={`paper ${i < state.currentSheetIndex ? 'flipped' : ''}`} style={{ zIndex: i < state.currentSheetIndex ? i : sheetsToRender.sheets.length - i }}>
