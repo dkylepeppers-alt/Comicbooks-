@@ -19,6 +19,10 @@ import {
 const MODEL_IMAGE_GEN_NAME = "gemini-3-pro-image-preview";
 const MODEL_TEXT_NAME = "gemini-3-flash-preview";
 
+// Base64 encoding adds ~33% overhead (4 bytes for every 3 bytes of data)
+// So to estimate binary size from base64: multiply by 0.75 (or 3/4)
+const BASE64_TO_BINARY_RATIO = 0.75;
+
 // True LRU cache for beat generation to avoid regenerating same content
 const beatCache = new Map<string, { beat: Beat; timestamp: number }>();
 const BEAT_CACHE_MAX_SIZE = 20;
@@ -146,7 +150,7 @@ export const AiService = {
 
       const part = res.candidates?.[0]?.content?.parts?.find(p => p.inlineData);
       if (part?.inlineData?.data) {
-        const sizeKB = Math.round(part.inlineData.data.length * 0.75 / 1024);
+        const sizeKB = Math.round(part.inlineData.data.length * BASE64_TO_BINARY_RATIO / 1024);
         console.log(`[AI Service] Persona image generated successfully - Size: ~${sizeKB}KB`);
         return { base64: part.inlineData.data, name: "Sidekick", description: desc };
       }
@@ -460,7 +464,7 @@ OUTPUT STRICT JSON ONLY (No markdown formatting):
         
         const part = res.candidates?.[0]?.content?.parts?.find(p => p.inlineData);
         if (part?.inlineData?.data) {
-          const sizeKB = Math.round(part.inlineData.data.length * 0.75 / 1024);
+          const sizeKB = Math.round(part.inlineData.data.length * BASE64_TO_BINARY_RATIO / 1024);
           console.log(`[AI Service] Image generated successfully - Size: ~${sizeKB}KB`);
           return `data:${part.inlineData.mimeType};base64,${part.inlineData.data}`;
         }

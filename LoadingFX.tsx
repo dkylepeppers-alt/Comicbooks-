@@ -43,8 +43,19 @@ export const LoadingFX: React.FC = () => {
       const originalError = console.error;
       const originalWarn = console.warn;
       
+      // Safe stringify helper that handles circular references and large objects
+      const safeStringify = (arg: any): string => {
+        if (typeof arg === 'string') return arg;
+        try {
+          // Limit object depth to prevent performance issues
+          return JSON.stringify(arg, null, 0).substring(0, 500);
+        } catch (e) {
+          return '[Circular or non-serializable object]';
+        }
+      };
+      
       const captureLog = (message: string, type: 'info' | 'success' | 'error' | 'warning') => {
-        // Only capture AI Service logs
+        // Only capture AI Service logs to avoid interfering with other libraries
         if (message.includes('[AI Service]') || message.includes('[API Key Test]')) {
           setApiLogs(prev => {
             const newLogs = [...prev, {
@@ -59,19 +70,19 @@ export const LoadingFX: React.FC = () => {
       };
       
       console.log = (...args) => {
-        const message = args.map(a => typeof a === 'string' ? a : JSON.stringify(a)).join(' ');
+        const message = args.map(safeStringify).join(' ');
         captureLog(message, 'info');
         originalLog.apply(console, args);
       };
       
       console.error = (...args) => {
-        const message = args.map(a => typeof a === 'string' ? a : JSON.stringify(a)).join(' ');
+        const message = args.map(safeStringify).join(' ');
         captureLog(message, 'error');
         originalError.apply(console, args);
       };
       
       console.warn = (...args) => {
-        const message = args.map(a => typeof a === 'string' ? a : JSON.stringify(a)).join(' ');
+        const message = args.map(safeStringify).join(' ');
         captureLog(message, 'warning');
         originalWarn.apply(console, args);
       };
