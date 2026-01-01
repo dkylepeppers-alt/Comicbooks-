@@ -12,6 +12,7 @@ import { useApiKey } from './useApiKey';
 import { ApiKeyDialog } from './ApiKeyDialog';
 import { NotificationToast } from './components/NotificationToast';
 import { ErrorBoundary } from './components/ErrorBoundary';
+import { GlobalLoadingIndicator } from './components/GlobalLoadingIndicator';
 import { Persona } from './types';
 
 const AppContent: React.FC = () => {
@@ -170,6 +171,8 @@ const AppContent: React.FC = () => {
           onConfigChange={actions.updateConfig}
           onLaunch={actions.launchStory}
       />
+
+      <GlobalLoadingIndicator />
 
       <Book />
     </div>
