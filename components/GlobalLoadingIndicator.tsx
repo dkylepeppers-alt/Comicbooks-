@@ -29,7 +29,10 @@ export const GlobalLoadingIndicator: React.FC = () => {
 
   const elapsedSeconds = progress?.startTime ? Math.max(0, Math.floor((now - progress.startTime) / 1000)) : undefined;
   const estimatedSeconds = progress && progress.current > 0 && elapsedSeconds !== undefined
-    ? Math.max(0, Math.round((elapsedSeconds / progress.current) * (progress.total - progress.current)))
+    ? Math.max(
+        0,
+        Math.round((elapsedSeconds / progress.current) * progress.total) - elapsedSeconds
+      )
     : undefined;
 
   const stageLabel = progress?.label?.toLowerCase() ?? '';

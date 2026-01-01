@@ -159,6 +159,8 @@ export const AiService = {
     if (config.genre === 'Custom') {
         coreDriver = `STORY PREMISE: ${config.customPremise || "A totally unique, unpredictable adventure"}.`;
     }
+
+    const foundationalPrompt = config.openingPrompt?.trim();
     
     // User Guidance - The most important input
     let directionInstruction = "";
@@ -172,6 +174,9 @@ export const AiService = {
 
     // Base Instruction
     let instruction = `Continue the story. ALL OUTPUT TEXT (Captions, Dialogue, Choices) MUST BE IN ${langName.toUpperCase()}. ${coreDriver}`;
+    if (foundationalPrompt) {
+        instruction += ` HONOR THE ORIGINAL STORY REQUEST: ${foundationalPrompt}.`;
+    }
     if (config.modelPresetPrompt) {
         instruction += ` PRESET GUIDANCE: ${config.modelPresetPrompt}`;
     }

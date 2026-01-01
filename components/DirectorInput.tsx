@@ -20,11 +20,28 @@ export const DirectorInput: React.FC<DirectorInputProps> = ({ onContinue, isGene
     const friendName = state.friend?.name?.trim() || 'your sidekick';
     const setting = state.currentWorld?.name?.trim() || state.config.genre || 'the city';
 
-    const branchOptions = useMemo(() => ([
-        `${heroName} leads a stealthy infiltration into ${setting}, slipping past patrols to plant evidence of the villain's hidden lair.`,
-        `${friendName} stages a bold distraction while ${heroName} races to free civilians trapped in a collapsing tower downtown.`,
-        `A forbidden relic activates, warping ${setting} into a surreal battleground where allies and enemies suddenly switch sides.`
-    ]), [friendName, heroName, setting]);
+    const lastStoryFace = useMemo(() => {
+        const storyFaces = state.comicFaces
+            .filter(face => face.type === 'story' && face.narrative && typeof face.pageIndex === 'number')
+            .sort((a, b) => (a.pageIndex || 0) - (b.pageIndex || 0));
+        return storyFaces[storyFaces.length - 1];
+    }, [state.comicFaces]);
+
+    const lastScene = lastStoryFace?.narrative?.scene?.trim();
+    const lastCaption = lastStoryFace?.narrative?.caption?.trim();
+    const lastChoice = lastStoryFace?.resolvedChoice;
+
+    const branchOptions = useMemo(() => {
+        const location = state.currentWorld?.name || setting;
+        const hook = lastChoice ? `After choosing "${lastChoice}"` : 'With tensions rising';
+        const sceneDetails = lastScene || `${heroName} and ${friendName} navigate ${location}`;
+
+        return [
+            `${hook}, ${heroName} charges back into ${sceneDetails.toLowerCase()}, forcing the villain to reveal their real objective.`,
+            `${friendName} takes the spotlight and flips the recent events (${lastCaption || 'the last twist'}) into a clever ambush that protects civilians.`,
+            `A sudden shift hits ${location}: the environment mutates around them, opening a new path but splitting ${heroName} and ${friendName} apart.`
+        ];
+    }, [friendName, heroName, lastCaption, lastChoice, lastScene, setting, state.currentWorld?.name]);
 
     return (
         <div className="w-full h-full bg-[#f0f0f0] p-8 flex flex-col items-center justify-center relative overflow-hidden border-r-4 border-gray-300">

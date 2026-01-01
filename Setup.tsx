@@ -130,6 +130,21 @@ export const Setup: React.FC<SetupProps> = (props) => {
     }, [addNotification]);
 
     useEffect(() => {
+        StorageService.restoreLocalLibrary()
+            .then((restored) => {
+                if (restored) {
+                    actions.addNotification('success', 'Reconnected to your local library', 2500);
+                    refreshLibrary();
+                    loadWorlds().catch((error: Error) => {
+                        console.error('Failed to load worlds after restoring library:', error);
+                        actions.addNotification('warning', 'Library reconnected but worlds could not be loaded');
+                    });
+                }
+            })
+            .catch((error) => console.warn('Library restore attempt failed', error));
+    }, [actions, loadWorlds, refreshLibrary]);
+
+    useEffect(() => {
         refreshLibrary();
         loadWorlds().catch((error: Error) => {
             console.error('Failed to load worlds:', error);

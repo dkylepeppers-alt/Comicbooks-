@@ -527,6 +527,14 @@ export const useComicEngine = () => {
       dispatch({ type: 'RESET' });
   }, []);
 
+  const startNewBook = useCallback(() => {
+      abortAllOperations();
+      clearAllTimeouts();
+      activeControllersRef.current.clear();
+      generatingPagesRef.current.clear();
+      dispatch({ type: 'RESET' });
+  }, [abortAllOperations, clearAllTimeouts]);
+
   const abortGeneration = useCallback(() => {
     abortAllOperations();
     clearAllTimeouts();
@@ -590,6 +598,7 @@ export const useComicEngine = () => {
       handleChoice,
       setSheetIndex,
       reset,
+      startNewBook,
       abortGeneration,
       clearError: () => dispatch({ type: 'SET_ERROR', payload: '' }),
       addNotification,
