@@ -16,7 +16,7 @@ interface PanelProps {
     onDownload: () => void;
 }
 
-export const Panel: React.FC<PanelProps> = ({ face, allFaces, onOpenBook, onDownload }) => {
+export const Panel: React.FC<PanelProps> = React.memo(({ face, allFaces, onOpenBook, onDownload }) => {
     const { actions } = useBook();
 
     if (!face) return <div className="w-full h-full bg-gray-950" />;
@@ -62,4 +62,4 @@ export const Panel: React.FC<PanelProps> = ({ face, allFaces, onOpenBook, onDown
             )}
         </div>
     );
-}
+});

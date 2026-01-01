@@ -35,6 +35,20 @@ const STORE_CONNECTIONS = 'connections';
 let dbPromise: Promise<IDBPDatabase<HeroesDB>>;
 let rootHandle: any | null = null; // FileSystemDirectoryHandle
 
+// Storage caches to reduce repeated reads
+let charactersCache: (Persona & { id: string; timestamp: number })[] | null = null;
+let charactersCacheTimestamp = 0;
+let worldsCache: (World & { timestamp: number })[] | null = null;
+let worldsCacheTimestamp = 0;
+let presetsCache: ModelPreset[] | null = null;
+let presetsCacheTimestamp = 0;
+
+const CACHE_TTL = 30000; // 30 seconds cache validity
+
+const isCacheValid = (timestamp: number): boolean => {
+  return Date.now() - timestamp < CACHE_TTL;
+};
+
 const initDB = () => {
   if (!dbPromise) {
     dbPromise = openDB<HeroesDB>(DB_NAME, 4, {
@@ -202,6 +216,10 @@ export const StorageService = {
     const id = persona.name.toLowerCase().replace(/\s+/g, '-');
     const data = { ...persona, id, timestamp: Date.now() };
 
+    // Invalidate cache
+    charactersCache = null;
+    charactersCacheTimestamp = 0;
+
     // 1. Try File System
     if (rootHandle) {
         const dir = await getSubDir('characters');
@@ -217,6 +235,11 @@ export const StorageService = {
   },
 
   async getCharacters(): Promise<(Persona & { id: string })[]> {
+    // Check cache first
+    if (charactersCache && isCacheValid(charactersCacheTimestamp)) {
+      return charactersCache;
+    }
+
     let fsItems: any[] = [];
     let idbItems: any[] = [];
     let idbError: unknown = null;
@@ -292,12 +315,22 @@ export const StorageService = {
         throw idbError;
     }
 
-    return items.sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
+    const sortedItems = items.sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
+    
+    // Update cache
+    charactersCache = sortedItems;
+    charactersCacheTimestamp = Date.now();
+
+    return sortedItems;
   },
 
   // --- WORLDS ---
   async saveWorld(world: World): Promise<void> {
     const data = { ...world, timestamp: Date.now() };
+
+    // Invalidate cache
+    worldsCache = null;
+    worldsCacheTimestamp = 0;
 
     if (rootHandle) {
         const dir = await getSubDir('worlds');
@@ -312,6 +345,11 @@ export const StorageService = {
   },
 
   async getWorlds(): Promise<World[]> {
+    // Check cache first
+    if (worldsCache && isCacheValid(worldsCacheTimestamp)) {
+      return worldsCache;
+    }
+
     let fsItems: any[] = [];
     let idbItems: any[] = [];
     let idbError: unknown = null;
@@ -379,10 +417,19 @@ export const StorageService = {
         throw idbError;
     }
 
-    return items.sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
+    const sortedItems = items.sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
+    
+    // Update cache
+    worldsCache = sortedItems;
+    worldsCacheTimestamp = Date.now();
+
+    return sortedItems;
   },
 
   async deleteWorld(id: string): Promise<void> {
+    // Invalidate cache
+    worldsCache = null;
+    worldsCacheTimestamp = 0;
     if (rootHandle) {
         const dir = await getSubDir('worlds');
         if (dir) {
@@ -399,6 +446,10 @@ export const StorageService = {
   async saveModelPreset(preset: ModelPreset): Promise<void> {
     const payload = { ...preset, updatedAt: preset.updatedAt || Date.now() };
 
+    // Invalidate cache
+    presetsCache = null;
+    presetsCacheTimestamp = 0;
+
     if (rootHandle) {
         const dir = await getSubDir('presets');
         if (dir) {
@@ -411,6 +462,11 @@ export const StorageService = {
   },
 
   async getModelPresets(): Promise<ModelPreset[]> {
+    // Check cache first
+    if (presetsCache && isCacheValid(presetsCacheTimestamp)) {
+      return presetsCache;
+    }
+
     let fsItems: ModelPreset[] = [];
     let idbItems: ModelPreset[] = [];
     let idbError: unknown = null;
@@ -459,10 +515,19 @@ export const StorageService = {
         throw idbError;
     }
 
-    return items.sort((a, b) => (b.updatedAt || 0) - (a.updatedAt || 0));
+    const sortedItems = items.sort((a, b) => (b.updatedAt || 0) - (a.updatedAt || 0));
+    
+    // Update cache
+    presetsCache = sortedItems;
+    presetsCacheTimestamp = Date.now();
+
+    return sortedItems;
   },
 
   async deleteModelPreset(id: string): Promise<void> {
+    // Invalidate cache
+    presetsCache = null;
+    presetsCacheTimestamp = 0;
     if (rootHandle) {
         const dir = await getSubDir('presets');
         if (dir) {

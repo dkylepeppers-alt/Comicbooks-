@@ -4,9 +4,8 @@
  * SPDX-License-Identifier: Apache-2.0
 */
 
-import React from 'react';
+import React, { Suspense, lazy } from 'react';
 import { ApiKeyDialog } from './ApiKeyDialog';
-import { Book } from './Book';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { GlobalLoadingIndicator } from './components/GlobalLoadingIndicator';
 import { NotificationToast } from './components/NotificationToast';
@@ -15,9 +14,12 @@ import { TopBar } from './components/TopBar';
 import { BookProvider, useBook } from './context/BookContext';
 import { ModelPresetProvider } from './context/ModelPresetContext';
 import { SettingsProvider } from './context/SettingsContext';
-import { Setup } from './Setup';
 import { Persona } from './types';
 import { useApiKey } from './useApiKey';
+
+// Lazy load heavy components for better code splitting
+const Book = lazy(() => import('./Book').then(m => ({ default: m.Book })));
+const Setup = lazy(() => import('./Setup').then(m => ({ default: m.Setup })));
 
 const AppContent: React.FC = () => {
   const { state, actions } = useBook();
@@ -166,23 +168,27 @@ const AppContent: React.FC = () => {
           onDismiss={actions.removeNotification}
         />
 
-        <Setup
-            show={state.status === 'setup'}
-            isTransitioning={state.status === 'generating'}
-            hero={state.hero}
-            friend={state.friend}
-            config={state.config}
-            onHeroUpload={handleHeroUpload}
-            onFriendUpload={handleFriendUpload}
-            onHeroUpdate={actions.updateHero}
-            onFriendUpdate={actions.updateFriend}
-            onConfigChange={actions.updateConfig}
-            onLaunch={actions.launchStory}
-        />
+        <Suspense fallback={<div className="w-full h-full flex items-center justify-center"><div className="animate-spin text-4xl">⏳</div></div>}>
+          <Setup
+              show={state.status === 'setup'}
+              isTransitioning={state.status === 'generating'}
+              hero={state.hero}
+              friend={state.friend}
+              config={state.config}
+              onHeroUpload={handleHeroUpload}
+              onFriendUpload={handleFriendUpload}
+              onHeroUpdate={actions.updateHero}
+              onFriendUpdate={actions.updateFriend}
+              onConfigChange={actions.updateConfig}
+              onLaunch={actions.launchStory}
+          />
+        </Suspense>
 
         <GlobalLoadingIndicator />
 
-        <Book />
+        <Suspense fallback={<div className="w-full h-full flex items-center justify-center"><div className="animate-spin text-4xl">📖</div></div>}>
+          <Book />
+        </Suspense>
       </div>
     </div>
   );

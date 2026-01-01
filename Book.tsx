@@ -14,7 +14,7 @@ import { TOTAL_PAGES } from './types';
 export const Book: React.FC = () => {
     const { state, actions } = useBook();
 
-    // Memoized map for faster lookup
+    // Memoized map for faster lookup - only recompute when faces change meaningfully
     const pageMap = useMemo(() => {
         const map = new Map<number, typeof state.comicFaces[number]>();
         state.comicFaces.forEach(face => {
@@ -25,11 +25,13 @@ export const Book: React.FC = () => {
         return map;
     }, [state.comicFaces]);
 
-    // PDF Generation
+    // PDF Generation - memoize heavy operations
     const downloadPDF = useCallback(() => {
         const PAGE_WIDTH = 480;
         const PAGE_HEIGHT = 720;
         const doc = new jsPDF({ orientation: 'portrait', unit: 'pt', format: [PAGE_WIDTH, PAGE_HEIGHT] });
+        
+        // Pre-filter and sort only completed pages
         const pagesToPrint = state.comicFaces
           .filter(face => face.imageUrl && !face.isLoading)
           .sort((a, b) => (a.pageIndex || 0) - (b.pageIndex || 0));

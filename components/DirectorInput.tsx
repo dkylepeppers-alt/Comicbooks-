@@ -12,7 +12,7 @@ interface DirectorInputProps {
     isGenerating?: boolean;
 }
 
-export const DirectorInput: React.FC<DirectorInputProps> = ({ onContinue, isGenerating = false }) => {
+export const DirectorInput: React.FC<DirectorInputProps> = React.memo(({ onContinue, isGenerating = false }) => {
     const [instruction, setInstruction] = useState("");
     const { state } = useBook();
 
@@ -100,4 +100,4 @@ export const DirectorInput: React.FC<DirectorInputProps> = ({ onContinue, isGene
              </div>
         </div>
     );
-};
+});
