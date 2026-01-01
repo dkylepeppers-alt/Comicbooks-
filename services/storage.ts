@@ -335,6 +335,7 @@ export const StorageService = {
             name: item.name,
             description: item.description || '',
             base64: item.base64,
+            images: item.images || undefined, // Preserve images array if it exists
             timestamp: item.timestamp || 0
         };
     };
