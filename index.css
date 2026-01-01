@@ -3,6 +3,13 @@
 @tailwind components;
 @tailwind utilities;
 
+@layer utilities {
+  .touch-manipulation {
+    touch-action: manipulation;
+    -webkit-tap-highlight-color: transparent;
+  }
+}
+
 @keyframes knockout-exit {
   0% { transform: scale(1) rotate(1deg); }
   15% { transform: scale(1.1) rotate(-5deg); }
