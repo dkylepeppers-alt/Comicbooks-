@@ -25,6 +25,7 @@ const StatusChip: React.FC<{ label: string; tone?: 'info' | 'warn' | 'success' }
 export const TopBar: React.FC = () => {
   const { state, actions } = useBook();
   const { togglePanel, isDirty, settings } = useSettings();
+  const networkStatus = useNetworkStatus();
   const [isCollapsed, setIsCollapsed] = React.useState(false);
 
   const activeTasks = state.loadingProgress
