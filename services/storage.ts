@@ -36,6 +36,11 @@ let dbPromise: Promise<IDBPDatabase<HeroesDB>>;
 let rootHandle: any | null = null; // FileSystemDirectoryHandle
 
 // Storage caches to reduce repeated reads
+// Note: Module-level caching is intentional for:
+// 1. Simplicity: Single source of truth across all storage calls
+// 2. Performance: No overhead from cache class instantiation
+// 3. Singleton pattern: Storage service is effectively a singleton
+// Cache is invalidated automatically on writes and has TTL for freshness
 let charactersCache: (Persona & { id: string; timestamp: number })[] | null = null;
 let charactersCacheTimestamp = 0;
 let worldsCache: (World & { timestamp: number })[] | null = null;

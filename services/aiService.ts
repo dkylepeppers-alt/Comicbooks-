@@ -42,7 +42,7 @@ const getCachedBeat = (key: string): Beat | null => {
 };
 
 const setCachedBeat = (key: string, beat: Beat): void => {
-  // True LRU: if cache is full, remove least recently used (first entry)
+  // True LRU: if at max capacity, remove least recently used (first entry) before adding
   if (beatCache.size >= BEAT_CACHE_MAX_SIZE) {
     const firstKey = beatCache.keys().next().value;
     if (firstKey) beatCache.delete(firstKey);

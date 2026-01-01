@@ -91,9 +91,16 @@ export async function compressImage(
 }
 
 /**
- * Estimates the original binary data size from a base64 string in bytes.
- * Base64 encoding increases size by ~33% (4 chars per 3 bytes).
- * This function calculates the approximate decoded size.
+ * Calculates the original binary data size from a base64-encoded string.
+ * 
+ * Base64 encoding represents binary data using 64 ASCII characters.
+ * Each base64 character encodes 6 bits of data (log2(64) = 6).
+ * Therefore: 4 base64 chars = 24 bits = 3 bytes of original data.
+ * 
+ * This function reverses that calculation to estimate the decoded size.
+ * 
+ * @param base64 - The base64-encoded string (without data URL prefix)
+ * @returns Estimated size of the original binary data in bytes
  */
 export function estimateBase64Size(base64: string): number {
   // Each base64 character represents 6 bits (3/4 of a byte)
