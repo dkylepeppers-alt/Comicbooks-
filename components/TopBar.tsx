@@ -67,19 +67,19 @@ export const TopBar: React.FC = () => {
 
   return (
     <header className={`fixed top-0 inset-x-0 z-40 bg-white/95 backdrop-blur border-b-4 border-black shadow-lg transition-all duration-300 ${isCollapsed ? 'translate-y-0' : ''}`}>
-      <div className={`max-w-6xl mx-auto px-4 ${isCollapsed ? 'py-2' : 'py-3'} flex items-center justify-between gap-3`}>
-        <div className="flex items-center gap-3">
+      <div className={`max-w-6xl mx-auto px-3 sm:px-4 ${isCollapsed ? 'py-2' : 'py-2 sm:py-3'} flex items-center justify-between gap-2 sm:gap-3`}>
+        <div className="flex items-center gap-2 sm:gap-3 min-w-0">
           <button
-            className="w-9 h-9 rounded-lg border-2 border-black bg-gradient-to-br from-amber-200 to-orange-300 flex items-center justify-center font-comic text-base text-black shadow-sm"
+            className="w-10 h-10 sm:w-9 sm:h-9 rounded-lg border-2 border-black bg-gradient-to-br from-amber-200 to-orange-300 flex items-center justify-center font-comic text-base text-black shadow-sm flex-shrink-0 touch-manipulation"
             onClick={() => setIsCollapsed(prev => !prev)}
             aria-label={isCollapsed ? 'Expand top bar' : 'Collapse top bar'}
             aria-expanded={!isCollapsed}
           >
             {isCollapsed ? '▾' : '▴'}
           </button>
-          <div>
-            <p className="font-comic text-xl text-gray-900 leading-none">Infinite Heroes</p>
-            <p className="text-[11px] text-gray-600">Model: {settings.model}</p>
+          <div className="min-w-0 flex-1">
+            <p className="font-comic text-lg sm:text-xl text-gray-900 leading-none truncate">Infinite Heroes</p>
+            {!isCollapsed && <p className="text-[10px] sm:text-[11px] text-gray-600 truncate">Model: {settings.model}</p>}
           </div>
         </div>
 
@@ -91,24 +91,26 @@ export const TopBar: React.FC = () => {
           </nav>
         )}
 
-        <div className={`flex items-center ${isCollapsed ? 'gap-1' : 'gap-2'}`}>
-          <div className={`flex flex-col ${isCollapsed ? 'items-end' : 'items-start'} max-w-[220px]`}>
-            <p className="text-[11px] text-gray-600 leading-tight">{quickStatus}</p>
-            {!isCollapsed && <p className="text-[11px] text-gray-500">Status: {statusLabel}</p>}
-          </div>
+        <div className={`flex items-center ${isCollapsed ? 'gap-1' : 'gap-1 sm:gap-2'} flex-shrink-0`}>
           {!isCollapsed && (
-            <>
+            <div className="hidden sm:flex flex-col items-start max-w-[220px]">
+              <p className="text-[11px] text-gray-600 leading-tight">{quickStatus}</p>
+              <p className="text-[11px] text-gray-500">Status: {statusLabel}</p>
+            </div>
+          )}
+          {!isCollapsed && (
+            <div className="hidden lg:flex items-center gap-2">
               <StatusChip label={statusLabel} tone={state.status === 'generating' ? 'warn' : 'info'} />
               <StatusChip label={`Tasks: ${activeTasks}`} tone={state.loadingProgress ? 'warn' : 'success'} />
               {isDirty && <StatusChip label="Unsaved settings" tone="warn" />}
-            </>
+            </div>
           )}
           <button
-            className={`comic-btn ${isCollapsed ? 'bg-white text-black text-xs px-2 py-1' : 'bg-black text-white text-sm px-3 py-2'}`}
+            className={`comic-btn touch-manipulation ${isCollapsed ? 'bg-white text-black text-xs px-2 py-1.5 sm:px-2 sm:py-1' : 'bg-black text-white text-xs sm:text-sm px-2 py-1.5 sm:px-3 sm:py-2'}`}
             onClick={togglePanel}
             aria-label="Open settings"
           >
-            ⚙️ {isCollapsed ? 'Settings' : 'Settings'}
+            ⚙️ <span className="hidden sm:inline">{isCollapsed ? '' : 'Settings'}</span>
           </button>
         </div>
       </div>
