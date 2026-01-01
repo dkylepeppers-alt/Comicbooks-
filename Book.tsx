@@ -8,6 +8,7 @@ import jsPDF from 'jspdf';
 import React, { useCallback, useMemo } from 'react';
 import { DirectorInput } from './components/DirectorInput';
 import { useBook } from './context/BookContext';
+import { useImagePreload } from './hooks/useImagePreload';
 import { Panel } from './Panel';
 import { TOTAL_PAGES } from './types';
 
@@ -24,6 +25,24 @@ export const Book: React.FC = () => {
         });
         return map;
     }, [state.comicFaces]);
+
+    // Preload upcoming page images for better mobile performance
+    const upcomingPageUrls = useMemo(() => {
+        const urls: (string | undefined)[] = [];
+        const currentPage = state.currentSheetIndex * 2;
+        // Preload next 4 pages
+        for (let i = currentPage; i < Math.min(currentPage + 4, TOTAL_PAGES + 1); i++) {
+            const face = pageMap.get(i);
+            if (face?.imageUrl) {
+                urls.push(face.imageUrl);
+            }
+        }
+        return urls;
+    }, [state.currentSheetIndex, pageMap]);
+
+    useImagePreload(upcomingPageUrls);
+
+    useImagePreload(upcomingPageUrls);
 
     // PDF Generation - memoize heavy operations
     const downloadPDF = useCallback(() => {

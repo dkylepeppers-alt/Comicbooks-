@@ -8,6 +8,18 @@
     touch-action: manipulation;
     -webkit-tap-highlight-color: transparent;
   }
+  
+  /* GPU acceleration for smoother animations on mobile */
+  .gpu-accelerate {
+    transform: translateZ(0);
+    will-change: transform;
+  }
+  
+  /* Smooth font rendering on mobile */
+  .smooth-text {
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
 }
 
 @keyframes knockout-exit {

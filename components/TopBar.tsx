@@ -25,6 +25,7 @@ const StatusChip: React.FC<{ label: string; tone?: 'info' | 'warn' | 'success' }
 export const TopBar: React.FC = () => {
   const { state, actions } = useBook();
   const { togglePanel, isDirty, settings } = useSettings();
+  const networkStatus = useNetworkStatus();
   const [isCollapsed, setIsCollapsed] = React.useState(false);
 
   const activeTasks = state.loadingProgress
@@ -100,6 +101,10 @@ export const TopBar: React.FC = () => {
           )}
           {!isCollapsed && (
             <div className="hidden lg:flex items-center gap-2">
+              {!networkStatus.online && <StatusChip label="📡 Offline" tone="warn" />}
+              {networkStatus.online && networkStatus.effectiveType && ['slow-2g', '2g'].includes(networkStatus.effectiveType) && (
+                <StatusChip label="🐌 Slow Connection" tone="warn" />
+              )}
               <StatusChip label={statusLabel} tone={state.status === 'generating' ? 'warn' : 'info'} />
               <StatusChip label={`Tasks: ${activeTasks}`} tone={state.loadingProgress ? 'warn' : 'success'} />
               {isDirty && <StatusChip label="Unsaved settings" tone="warn" />}
