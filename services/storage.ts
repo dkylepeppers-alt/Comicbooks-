@@ -129,6 +129,7 @@ export const StorageService = {
   async getCharacters(): Promise<(Persona & { id: string })[]> {
     let fsItems: any[] = [];
     let idbItems: any[] = [];
+    let idbError: unknown = null;
 
     // 1. Try File System
     if (rootHandle) {
@@ -147,7 +148,7 @@ export const StorageService = {
         idbItems = await db.getAll(STORE_HEROES);
     } catch (e) {
         console.error("Failed to read characters from IndexedDB:", e);
-        // Continue even if IDB fails
+        idbError = e;
     }
 
     // 3. Validate and normalize all items
@@ -197,6 +198,10 @@ export const StorageService = {
 
     const items = Array.from(mergedMap.values());
 
+    if (!items.length && idbError) {
+        throw idbError;
+    }
+
     return items.sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
   },
 
@@ -219,6 +224,7 @@ export const StorageService = {
   async getWorlds(): Promise<World[]> {
     let fsItems: any[] = [];
     let idbItems: any[] = [];
+    let idbError: unknown = null;
 
     // 1. Try File System
     if (rootHandle) {
@@ -237,7 +243,7 @@ export const StorageService = {
         idbItems = await db.getAll(STORE_WORLDS);
     } catch (e) {
         console.error("Failed to read worlds from IndexedDB:", e);
-        // Continue even if IDB fails
+        idbError = e;
     }
 
     // 3. Validate and normalize all items
@@ -278,6 +284,10 @@ export const StorageService = {
     });
 
     const items = Array.from(mergedMap.values());
+
+    if (!items.length && idbError) {
+        throw idbError;
+    }
 
     return items.sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
   },
