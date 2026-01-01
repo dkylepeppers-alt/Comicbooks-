@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
 */
 
-import React, { useState, useEffect } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { useBook } from './context/BookContext';
 
 const LOADING_FX = ["POW!", "BAM!", "ZAP!", "KRAK!", "SKREEE!", "WHOOSH!", "THWIP!", "BOOM!"];
@@ -13,6 +13,13 @@ export const LoadingFX: React.FC = () => {
     const { state, actions } = useBook();
     const [particles, setParticles] = useState<{id: number, text: string, x: string, y: string, rot: number, color: string}[]>([]);
     const [elapsedTime, setElapsedTime] = useState(0);
+    const [isCollapsed, setIsCollapsed] = useState(false);
+    const [position, setPosition] = useState({ x: 18, y: 18 });
+    const dragOffsetRef = useRef({ x: 0, y: 0 });
+    const dragCaptureRef = useRef<HTMLElement | null>(null);
+    const isDraggingRef = useRef(false);
+    const shellRef = useRef<HTMLDivElement>(null);
+    const cardRef = useRef<HTMLDivElement>(null);
 
     // Progress Data from Engine
     const progress = state.loadingProgress;
@@ -20,6 +27,83 @@ export const LoadingFX: React.FC = () => {
     // Calculate percentage - default to indeterminate loading if no progress data
     const percentage = progress ? Math.round((progress.current / progress.total) * 100) : 0;
     const hasProgress = progress !== null;
+
+    // Center the card after first render so it does not cover the same place every time
+    useEffect(() => {
+        const shell = shellRef.current;
+        const card = cardRef.current;
+        if (!shell || !card) return;
+
+        const shellRect = shell.getBoundingClientRect();
+        const cardRect = card.getBoundingClientRect();
+        const centeredX = Math.max(12, (shellRect.width - cardRect.width) / 2);
+        const centeredY = Math.max(12, shellRect.height * 0.12);
+        setPosition({ x: centeredX, y: centeredY });
+    }, []);
+
+    const handlePointerDown = (event: React.PointerEvent) => {
+        const shell = shellRef.current;
+        const card = cardRef.current;
+        if (!shell || !card) return;
+
+        const shellRect = shell.getBoundingClientRect();
+        const cardRect = card.getBoundingClientRect();
+        dragOffsetRef.current = {
+            x: event.clientX - shellRect.left - position.x,
+            y: event.clientY - shellRect.top - position.y,
+        };
+        isDraggingRef.current = true;
+        // Prevent text selection while dragging
+        const target = event.currentTarget as HTMLElement;
+        dragCaptureRef.current = target;
+        target.setPointerCapture(event.pointerId);
+        event.preventDefault();
+
+        // Ensure we clamp inside the shell
+        const maxX = Math.max(8, shellRect.width - cardRect.width - 8);
+        const maxY = Math.max(8, shellRect.height - cardRect.height - 8);
+        setPosition(prev => ({
+            x: Math.min(maxX, Math.max(8, prev.x)),
+            y: Math.min(maxY, Math.max(8, prev.y)),
+        }));
+    };
+
+    useEffect(() => {
+        const handlePointerMove = (event: PointerEvent) => {
+            if (!isDraggingRef.current || !shellRef.current || !cardRef.current) return;
+            const shellRect = shellRef.current.getBoundingClientRect();
+            const cardRect = cardRef.current.getBoundingClientRect();
+            const maxX = Math.max(8, shellRect.width - cardRect.width - 8);
+            const maxY = Math.max(8, shellRect.height - cardRect.height - 8);
+            const x = event.clientX - shellRect.left - dragOffsetRef.current.x;
+            const y = event.clientY - shellRect.top - dragOffsetRef.current.y;
+            setPosition({
+                x: Math.min(maxX, Math.max(8, x)),
+                y: Math.min(maxY, Math.max(8, y)),
+            });
+        };
+
+        const handlePointerUp = (event: PointerEvent) => {
+            if (isDraggingRef.current) {
+                isDraggingRef.current = false;
+                if (dragCaptureRef.current) {
+                    try {
+                        dragCaptureRef.current.releasePointerCapture(event.pointerId);
+                    } catch (e) {
+                        // no-op
+                    }
+                    dragCaptureRef.current = null;
+                }
+            }
+        };
+
+        window.addEventListener('pointermove', handlePointerMove);
+        window.addEventListener('pointerup', handlePointerUp);
+        return () => {
+            window.removeEventListener('pointermove', handlePointerMove);
+            window.removeEventListener('pointerup', handlePointerUp);
+        };
+    }, []);
 
     // Particle animation effect
     useEffect(() => {
@@ -48,7 +132,7 @@ export const LoadingFX: React.FC = () => {
     }, [progress]);
 
     return (
-        <div className="w-full h-full bg-white overflow-hidden relative border-r-4 border-gray-300">
+        <div ref={shellRef} className="absolute inset-0 bg-transparent overflow-hidden pointer-events-none">
             <style>{`
               @keyframes comic-pop {
                   0% { transform: translate(-50%, -50%) scale(0.2) rotate(var(--rot)); opacity: 0; }
@@ -63,88 +147,111 @@ export const LoadingFX: React.FC = () => {
                   100% { transform: translateX(-100%); }
               }
             `}</style>
-            <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-gray-100 to-white opacity-50" />
-            
-            {particles.map(p => (
-                <div key={p.id} 
-                     className={`absolute font-comic text-5xl md:text-7xl font-bold ${p.color} select-none whitespace-nowrap z-10`}
-                     style={{ left: p.x, top: p.y, '--rot': `${p.rot}deg`, animation: 'comic-pop 1.8s forwards ease-out', textShadow: '3px 3px 0px black, 0 0 20px rgba(255,255,255,0.8)' } as React.CSSProperties}>
-                    {p.text}
-                </div>
-            ))}
-            
-            <div className="absolute bottom-16 inset-x-6 z-20 flex flex-col items-center gap-3">
-                {/* Main Status Label */}
-                <div className="relative">
-                    <p className="font-comic text-xl text-black bg-white/90 px-4 py-1 border-2 border-black tracking-widest shadow-[2px_2px_0px_rgba(0,0,0,0.5)]">
-                        {progress ? progress.label.toUpperCase() : "INKING PAGE..."}
-                    </p>
-                    {/* Pulsing indicator dot */}
-                    <div className="absolute -right-1 -top-1 w-3 h-3 bg-red-500 border-2 border-black rounded-full animate-pulse" />
-                </div>
+            <div
+              ref={cardRef}
+              className={`pointer-events-auto ${isCollapsed ? 'w-44 h-16' : 'w-[min(520px,95vw)]'} bg-white/95 border-4 border-black rounded-2xl shadow-2xl overflow-hidden transition-all duration-300`}
+              style={{
+                transform: `translate(${position.x}px, ${position.y}px)`
+              }}
+            >
+                {isCollapsed ? (
+                  <button
+                    onPointerDown={handlePointerDown}
+                    onClick={(e) => { e.stopPropagation(); setIsCollapsed(false); }}
+                    className="w-full h-full flex items-center justify-between px-4 font-comic text-sm bg-gradient-to-r from-yellow-200 via-yellow-300 to-orange-300"
+                    aria-label="Expand inking panel"
+                  >
+                    <span className="text-lg">🖌️</span>
+                    <div className="text-left">
+                      <p className="text-xs font-semibold text-gray-900">Inking</p>
+                      <p className="text-[11px] text-gray-700">{hasProgress ? `${percentage}% ready` : 'Summoning ink'}</p>
+                    </div>
+                    <span className="text-lg">⤢</span>
+                  </button>
+                ) : (
+                  <div className="relative p-4 pb-5">
+                    <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-gray-100 to-white opacity-80" />
+                    {particles.map(p => (
+                        <div key={p.id}
+                            className={`absolute font-comic text-4xl md:text-5xl font-bold ${p.color} select-none whitespace-nowrap z-0`}
+                            style={{ left: p.x, top: p.y, '--rot': `${p.rot}deg`, animation: 'comic-pop 1.8s forwards ease-out', textShadow: '2px 2px 0px black, 0 0 12px rgba(255,255,255,0.8)' } as React.CSSProperties}>
+                            {p.text}
+                        </div>
+                    ))}
 
-                {/* Substep (if available) */}
-                {progress?.substep && (
-                    <p className="font-comic text-sm text-gray-700 bg-yellow-100/80 px-3 py-1 border border-black italic">
-                        {progress.substep}
-                    </p>
-                )}
+                    <div className="relative z-10 space-y-3">
+                        <div className="flex items-center justify-between gap-2">
+                            <div className="flex items-center gap-2">
+                                <span className="text-2xl">🖌️</span>
+                                <div>
+                                    <p className="font-comic text-lg text-gray-900 leading-tight">{progress ? progress.label : 'INKING PAGE...'}</p>
+                                    <p className="text-[11px] text-gray-600">{progress?.substep ?? 'AI is sketching outlines and strokes.'}</p>
+                                </div>
+                            </div>
+                            <div className="flex items-center gap-1">
+                                <button
+                                  onPointerDown={handlePointerDown}
+                                  className="w-8 h-8 rounded-full border-2 border-black bg-yellow-200 text-sm font-semibold" 
+                                  title="Drag to reposition"
+                                  aria-label="Drag inking panel"
+                                >
+                                  ⠿
+                                </button>
+                                <button
+                                  onClick={() => setIsCollapsed(true)}
+                                  className="w-8 h-8 rounded-full border-2 border-black bg-gray-100 hover:bg-gray-200"
+                                  aria-label="Collapse inking panel"
+                                >
+                                  –
+                                </button>
+                            </div>
+                        </div>
 
-                {/* Progress Bar */}
-                <div className="w-full space-y-1">
-                    <div className="w-full h-8 border-4 border-black bg-white relative shadow-[4px_4px_0px_rgba(0,0,0,0.5)] overflow-hidden">
-                        {/* Animated background stripes */}
-                        <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent animate-pulse" />
+                        <div className="w-full space-y-1">
+                            <div className="w-full h-7 border-[3px] border-black bg-white relative shadow-[3px_3px_0px_rgba(0,0,0,0.35)] overflow-hidden rounded-sm">
+                                <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/30 to-transparent animate-pulse" />
+                                {hasProgress ? (
+                                    <div
+                                      className="h-full bg-gradient-to-r from-yellow-300 via-yellow-400 to-orange-400 border-r-2 border-black transition-all duration-500 ease-out relative"
+                                      style={{ width: `${percentage}%` }}
+                                    >
+                                      <div className="absolute inset-0 bg-gradient-to-b from-white/30 via-transparent to-transparent" />
+                                    </div>
+                                ) : (
+                                    <div className="h-full relative overflow-hidden">
+                                      <div className="absolute inset-0 bg-gradient-to-r from-yellow-300 via-yellow-400 to-orange-400 animate-pulse" style={{ width: '45%', animation: 'slide 1.6s ease-in-out infinite' }} />
+                                    </div>
+                                )}
+                                <div className="absolute inset-0 flex items-center justify-between px-3 text-xs font-comic font-bold text-black drop-shadow-[1px_1px_0px_rgba(255,255,255,0.8)]">
+                                    <span>{hasProgress ? `${percentage}%` : 'Loading…'}</span>
+                                    {hasProgress && <span>Step {progress.current}/{progress.total}</span>}
+                                </div>
+                            </div>
+                            <div className="flex justify-between items-center text-[11px] font-comic">
+                                <span className="text-gray-700">⏱️ {Math.floor(elapsedTime / 60)}:{(elapsedTime % 60).toString().padStart(2, '0')}</span>
+                                <span className="text-gray-500 italic">{progress?.substep ?? 'AI is thinking...'}</span>
+                            </div>
+                        </div>
 
-                        {/* Progress fill with gradient */}
-                        {hasProgress ? (
-                            <div
-                                className="h-full bg-gradient-to-r from-yellow-300 via-yellow-400 to-orange-400 border-r-2 border-black transition-all duration-500 ease-out relative"
-                                style={{ width: `${percentage}%` }}
+                        <div className="grid grid-cols-2 gap-2 text-[11px] font-semibold text-gray-800">
+                            <div className="bg-yellow-50 border border-black/10 rounded-md px-2 py-1">Ink pass: color, shading</div>
+                            <div className="bg-blue-50 border border-black/10 rounded-md px-2 py-1">Layout: speech bubbles</div>
+                            <div className="bg-emerald-50 border border-black/10 rounded-md px-2 py-1">Detailing: textures & FX</div>
+                            <div className="bg-rose-50 border border-black/10 rounded-md px-2 py-1">Quality check & polish</div>
+                        </div>
+
+                        <div className="flex justify-end">
+                            <button
+                              type="button"
+                              onClick={(e) => { e.stopPropagation(); actions.abortGeneration(); }}
+                              className="comic-btn bg-red-500 text-white px-4 py-2 text-sm font-bold hover:bg-red-400"
                             >
-                                {/* Shine effect */}
-                                <div className="absolute inset-0 bg-gradient-to-b from-white/30 via-transparent to-transparent" />
-                            </div>
-                        ) : (
-                            /* Indeterminate progress animation */
-                            <div className="h-full relative overflow-hidden">
-                                <div className="absolute inset-0 bg-gradient-to-r from-yellow-300 via-yellow-400 to-orange-400 animate-pulse" style={{ width: '40%', animation: 'slide 1.5s ease-in-out infinite' }} />
-                            </div>
-                        )}
-
-                        {/* Text overlay */}
-                        <div className="absolute inset-0 flex items-center justify-center gap-2">
-                            {hasProgress ? (
-                                <>
-                                    <span className="font-comic text-sm font-bold text-black drop-shadow-[1px_1px_0px_rgba(255,255,255,0.8)]">
-                                        {percentage}%
-                                    </span>
-                                    <span className="font-comic text-xs font-bold text-black/70 drop-shadow-[1px_1px_0px_rgba(255,255,255,0.8)]">
-                                        ({progress.current}/{progress.total})
-                                    </span>
-                                </>
-                            ) : (
-                                <span className="font-comic text-sm font-bold text-black drop-shadow-[1px_1px_0px_rgba(255,255,255,0.8)] animate-pulse">
-                                    Loading...
-                                </span>
-                            )}
+                              Abort Generation
+                            </button>
                         </div>
                     </div>
-
-                    {/* Elapsed time */}
-                    <div className="flex justify-between items-center text-xs font-comic">
-                        <span className="text-gray-600">⏱️ {Math.floor(elapsedTime / 60)}:{(elapsedTime % 60).toString().padStart(2, '0')}</span>
-                        <span className="text-gray-500 italic">AI is thinking...</span>
-                    </div>
-                </div>
-
-                <button
-                  type="button"
-                  onClick={(e) => { e.stopPropagation(); actions.abortGeneration(); }}
-                  className="comic-btn bg-red-500 text-white px-4 py-2 text-sm font-bold hover:bg-red-400"
-                >
-                  Abort Generation
-                </button>
+                  </div>
+                )}
             </div>
         </div>
     );

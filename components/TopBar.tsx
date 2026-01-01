@@ -25,6 +25,7 @@ const StatusChip: React.FC<{ label: string; tone?: 'info' | 'warn' | 'success' }
 export const TopBar: React.FC = () => {
   const { state, actions } = useBook();
   const { togglePanel, isDirty, settings } = useSettings();
+  const [isCollapsed, setIsCollapsed] = React.useState(false);
 
   const activeTasks = state.loadingProgress
     ? `${state.loadingProgress.current}/${state.loadingProgress.total}`
@@ -52,35 +53,54 @@ export const TopBar: React.FC = () => {
       ? 'Reading mode'
       : 'Setup';
 
+  const quickStatus = state.loadingProgress
+    ? `${state.loadingProgress.label} · ${state.loadingProgress.substep ?? 'Working…'}`
+    : 'Ready for your next move';
+
   return (
-    <header className="fixed top-0 inset-x-0 z-40 bg-white/95 backdrop-blur border-b-4 border-black shadow-lg">
-      <div className="max-w-6xl mx-auto px-4 py-3 flex items-center justify-between gap-4">
+    <header className={`fixed top-0 inset-x-0 z-40 bg-white/95 backdrop-blur border-b-4 border-black shadow-lg transition-all duration-300 ${isCollapsed ? 'translate-y-0' : ''}`}>
+      <div className={`max-w-6xl mx-auto px-4 ${isCollapsed ? 'py-2' : 'py-3'} flex items-center justify-between gap-3`}>
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-lg border-2 border-black bg-gradient-to-br from-amber-200 to-orange-300 flex items-center justify-center font-comic text-lg text-black shadow-sm">
-            IH
-          </div>
+          <button
+            className="w-9 h-9 rounded-lg border-2 border-black bg-gradient-to-br from-amber-200 to-orange-300 flex items-center justify-center font-comic text-base text-black shadow-sm"
+            onClick={() => setIsCollapsed(prev => !prev)}
+            aria-label={isCollapsed ? 'Expand top bar' : 'Collapse top bar'}
+            aria-expanded={!isCollapsed}
+          >
+            {isCollapsed ? '▾' : '▴'}
+          </button>
           <div>
             <p className="font-comic text-xl text-gray-900 leading-none">Infinite Heroes</p>
             <p className="text-[11px] text-gray-600">Model: {settings.model}</p>
           </div>
         </div>
 
-        <nav className="hidden md:flex items-center gap-2">
-          <button className="comic-btn bg-white text-black text-sm px-3 py-2" onClick={handleHome}>Home</button>
-          <button className="comic-btn bg-white text-black text-sm px-3 py-2" onClick={handleLibrary}>Library</button>
-          <button className="comic-btn bg-white text-black text-sm px-3 py-2" onClick={handleExportHint}>Export</button>
-        </nav>
+        {!isCollapsed && (
+          <nav className="hidden md:flex items-center gap-2">
+            <button className="comic-btn bg-white text-black text-sm px-3 py-2" onClick={handleHome}>Home</button>
+            <button className="comic-btn bg-white text-black text-sm px-3 py-2" onClick={handleLibrary}>Library</button>
+            <button className="comic-btn bg-white text-black text-sm px-3 py-2" onClick={handleExportHint}>Export</button>
+          </nav>
+        )}
 
-        <div className="flex items-center gap-2">
-          <StatusChip label={statusLabel} tone={state.status === 'generating' ? 'warn' : 'info'} />
-          <StatusChip label={`Tasks: ${activeTasks}`} tone={state.loadingProgress ? 'warn' : 'success'} />
-          {isDirty && <StatusChip label="Unsaved settings" tone="warn" />}
+        <div className={`flex items-center ${isCollapsed ? 'gap-1' : 'gap-2'}`}>
+          <div className={`flex flex-col ${isCollapsed ? 'items-end' : 'items-start'} max-w-[220px]`}>
+            <p className="text-[11px] text-gray-600 leading-tight">{quickStatus}</p>
+            {!isCollapsed && <p className="text-[11px] text-gray-500">Status: {statusLabel}</p>}
+          </div>
+          {!isCollapsed && (
+            <>
+              <StatusChip label={statusLabel} tone={state.status === 'generating' ? 'warn' : 'info'} />
+              <StatusChip label={`Tasks: ${activeTasks}`} tone={state.loadingProgress ? 'warn' : 'success'} />
+              {isDirty && <StatusChip label="Unsaved settings" tone="warn" />}
+            </>
+          )}
           <button
-            className="comic-btn bg-black text-white text-sm px-3 py-2"
+            className={`comic-btn ${isCollapsed ? 'bg-white text-black text-xs px-2 py-1' : 'bg-black text-white text-sm px-3 py-2'}`}
             onClick={togglePanel}
             aria-label="Open settings"
           >
-            ⚙️ Settings
+            ⚙️ {isCollapsed ? 'Settings' : 'Settings'}
           </button>
         </div>
       </div>
