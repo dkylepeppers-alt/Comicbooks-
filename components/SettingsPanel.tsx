@@ -14,19 +14,19 @@ const Section: React.FC<{ title: string; children: React.ReactNode; description?
   <section className="space-y-2">
     <div className="flex items-start justify-between gap-2">
       <div>
-        <p className="font-comic text-lg text-gray-900">{title}</p>
+        <p className="font-comic text-base sm:text-lg text-gray-900">{title}</p>
         {description && <p className="text-xs text-gray-600 leading-snug">{description}</p>}
       </div>
     </div>
-    <div className="grid grid-cols-1 gap-3">{children}</div>
+    <div className="grid grid-cols-1 gap-2 sm:gap-3">{children}</div>
   </section>
 );
 
 const FieldLabel: React.FC<{ label: string; hint?: string }>
   = ({ label, hint }) => (
   <div className="flex items-center justify-between">
-    <span className="text-sm font-semibold text-gray-800">{label}</span>
-    {hint && <span className="text-[11px] text-gray-500">{hint}</span>}
+    <span className="text-xs sm:text-sm font-semibold text-gray-800">{label}</span>
+    {hint && <span className="text-[10px] sm:text-[11px] text-gray-500">{hint}</span>}
   </div>
 );
 
@@ -166,19 +166,19 @@ export const SettingsPanel: React.FC = () => {
         onClick={closePanel}
       />
 
-      <div className="relative w-full max-w-[420px] h-full bg-gradient-to-b from-white to-slate-50 border-l-4 border-black shadow-2xl animate-slide-in-right overflow-y-auto">
-        <div className="sticky top-0 z-10 bg-white/95 backdrop-blur border-b border-gray-200 px-4 py-3 flex items-center justify-between gap-3">
-          <div>
-            <p className="font-comic text-xl text-gray-900">Settings</p>
-            <p className="text-xs text-gray-600">Fine-tune models, rendering, and accessibility</p>
+      <div className="relative w-full max-w-full sm:max-w-[420px] h-full bg-gradient-to-b from-white to-slate-50 border-l-4 border-black shadow-2xl animate-slide-in-right overflow-y-auto">
+        <div className="sticky top-0 z-10 bg-white/95 backdrop-blur border-b border-gray-200 px-3 sm:px-4 py-2 sm:py-3 flex items-center justify-between gap-2">
+          <div className="flex-1 min-w-0">
+            <p className="font-comic text-lg sm:text-xl text-gray-900 truncate">Settings</p>
+            <p className="text-[10px] sm:text-xs text-gray-600 truncate">Fine-tune models and rendering</p>
           </div>
-          <div className="flex items-center gap-2">
-            {isDirty && <span className="px-2 py-1 rounded-full bg-amber-100 text-amber-700 text-[11px] font-semibold border border-amber-300">Unsaved</span>}
+          <div className="flex items-center gap-1 sm:gap-2 flex-shrink-0">
+            {isDirty && <span className="px-2 py-1 rounded-full bg-amber-100 text-amber-700 text-[10px] sm:text-[11px] font-semibold border border-amber-300">Unsaved</span>}
             {lastSavedAt && (
-              <span className="text-[11px] text-gray-500">Saved {new Date(lastSavedAt).toLocaleTimeString()}</span>
+              <span className="text-[10px] sm:text-[11px] text-gray-500 hidden sm:inline">Saved {new Date(lastSavedAt).toLocaleTimeString()}</span>
             )}
             <button
-              className="w-8 h-8 rounded-full border-2 border-black bg-gray-100 hover:bg-gray-200 flex items-center justify-center"
+              className="w-10 h-10 sm:w-8 sm:h-8 rounded-full border-2 border-black bg-gray-100 hover:bg-gray-200 flex items-center justify-center touch-manipulation text-xl sm:text-base"
               aria-label="Close settings"
               onClick={closePanel}
             >
@@ -187,7 +187,7 @@ export const SettingsPanel: React.FC = () => {
           </div>
         </div>
 
-        <div className="px-4 py-4 space-y-5">
+        <div className="px-3 sm:px-4 py-3 sm:py-4 space-y-4 sm:space-y-5">
           <Section title="Gemini API Key" description="Required for generating comics. Get your key from Google AI Studio">
             <div className="space-y-3">
               <div>
@@ -196,20 +196,20 @@ export const SettingsPanel: React.FC = () => {
                   type="password"
                   value={apiKeyInput}
                   onChange={(e) => setApiKeyInput(e.target.value)}
-                  className="w-full border border-gray-300 rounded-md px-3 py-2 font-mono text-sm"
+                  className="w-full border border-gray-300 rounded-md px-3 py-2.5 sm:py-2 font-mono text-sm touch-manipulation min-h-[44px] sm:min-h-0"
                   placeholder="AIza..."
                 />
               </div>
               <div className="flex flex-wrap items-center gap-2">
                 <button 
-                  className="comic-btn bg-blue-500 text-white text-sm px-4 py-2 hover:bg-blue-400 disabled:opacity-60 disabled:cursor-not-allowed" 
+                  className="comic-btn bg-blue-500 text-white text-xs sm:text-sm px-3 py-2.5 sm:py-2 hover:bg-blue-400 disabled:opacity-60 disabled:cursor-not-allowed touch-manipulation min-h-[44px] sm:min-h-0" 
                   onClick={handleTestApiKey}
                   disabled={isTestingKey}
                 >
                   {isTestingKey ? '🔄 Testing...' : '🧪 Test Key'}
                 </button>
                 <button 
-                  className="comic-btn bg-green-500 text-white text-sm px-4 py-2 hover:bg-green-400" 
+                  className="comic-btn bg-green-500 text-white text-xs sm:text-sm px-3 py-2.5 sm:py-2 hover:bg-green-400 touch-manipulation min-h-[44px] sm:min-h-0" 
                   onClick={handleSaveApiKey}
                 >
                   💾 Save Key
@@ -255,7 +255,7 @@ export const SettingsPanel: React.FC = () => {
                 <select
                   value={selectedPresetId}
                   onChange={e => handlePresetChange(e.target.value)}
-                  className="w-full border border-gray-300 rounded-md px-2 py-2"
+                  className="w-full border border-gray-300 rounded-md px-2 py-2.5 sm:py-2 touch-manipulation min-h-[44px] sm:min-h-0"
                 >
                   {presets.map(preset => (
                     <option key={preset.id} value={preset.id}>
@@ -264,14 +264,14 @@ export const SettingsPanel: React.FC = () => {
                   ))}
                 </select>
               </div>
-              <div className="grid grid-cols-1 gap-3">
+              <div className="grid grid-cols-1 gap-2 sm:gap-3">
                 <div>
                   <FieldLabel label="Model" hint="Text generation target" />
                   <input
                     type="text"
                     value={modelDraft}
                     onChange={e => setModelDraft(e.target.value)}
-                    className="w-full border border-gray-300 rounded-md px-2 py-2"
+                    className="w-full border border-gray-300 rounded-md px-2 py-2.5 sm:py-2 touch-manipulation min-h-[44px] sm:min-h-0"
                   />
                 </div>
                 <div>
@@ -280,18 +280,18 @@ export const SettingsPanel: React.FC = () => {
                     value={promptDraft}
                     onChange={e => setPromptDraft(e.target.value)}
                     rows={6}
-                    className="w-full border border-gray-300 rounded-md px-2 py-2 font-mono text-sm"
+                    className="w-full border border-gray-300 rounded-md px-2 py-2 font-mono text-sm touch-manipulation"
                   />
                 </div>
               </div>
               <div className="flex flex-wrap items-center gap-2">
-                <button className="comic-btn bg-black text-white text-sm px-3 py-2" onClick={handleSavePreset}>
+                <button className="comic-btn bg-black text-white text-xs sm:text-sm px-3 py-2.5 sm:py-2 touch-manipulation min-h-[44px] sm:min-h-0" onClick={handleSavePreset}>
                   💾 Save preset
                 </button>
-                <button className="comic-btn bg-white text-black text-sm px-3 py-2" onClick={handleCreatePreset}>
+                <button className="comic-btn bg-white text-black text-xs sm:text-sm px-3 py-2.5 sm:py-2 touch-manipulation min-h-[44px] sm:min-h-0" onClick={handleCreatePreset}>
                   ➕ Create new
                 </button>
-                <button className="comic-btn bg-gray-100 text-black text-sm px-3 py-2" onClick={handleResetPreset}>
+                <button className="comic-btn bg-gray-100 text-black text-xs sm:text-sm px-3 py-2.5 sm:py-2 touch-manipulation min-h-[44px] sm:min-h-0" onClick={handleResetPreset}>
                   ♻️ Revert to default
                 </button>
               </div>
@@ -299,24 +299,24 @@ export const SettingsPanel: React.FC = () => {
           </Section>
 
           <Section title="Quick Toggles" description="Common switches surface at the top for speed">
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-2 gap-2 sm:gap-3">
               <button
-                className={`comic-btn text-sm py-2 ${draft.theme === 'dark' ? 'bg-black text-white' : 'bg-white text-black'}`}
+                className={`comic-btn text-xs sm:text-sm py-2.5 sm:py-2 touch-manipulation min-h-[44px] sm:min-h-0 ${draft.theme === 'dark' ? 'bg-black text-white' : 'bg-white text-black'}`}
                 onClick={() => updateDraft({ theme: draft.theme === 'dark' ? 'light' : 'dark' })}
               >
                 {draft.theme === 'dark' ? '🌙 Dark' : '☀️ Light'}
               </button>
               <button
-                className={`comic-btn text-sm py-2 ${draft.reducedMotion ? 'bg-emerald-600 text-white' : 'bg-white text-black'}`}
+                className={`comic-btn text-xs sm:text-sm py-2.5 sm:py-2 touch-manipulation min-h-[44px] sm:min-h-0 ${draft.reducedMotion ? 'bg-emerald-600 text-white' : 'bg-white text-black'}`}
                 onClick={() => updateDraft({ reducedMotion: !draft.reducedMotion })}
               >
-                {draft.reducedMotion ? 'Reduced Motion' : 'Motion On'}
+                {draft.reducedMotion ? 'Reduced' : 'Motion On'}
               </button>
               <button
-                className="comic-btn text-sm py-2 bg-white text-black col-span-2"
+                className="comic-btn text-xs sm:text-sm py-2.5 sm:py-2 bg-white text-black col-span-2 touch-manipulation min-h-[44px] sm:min-h-0 truncate"
                 onClick={() => updateDraft({ model: draft.model === 'gemini-3-flash-preview' ? 'gemini-3-pro-preview' : 'gemini-3-flash-preview' })}
               >
-                ⚙️ Model: {draft.model}
+                ⚙️ Model: {draft.model === 'gemini-3-flash-preview' ? 'Flash' : 'Pro'}
               </button>
             </div>
           </Section>
@@ -357,7 +357,7 @@ export const SettingsPanel: React.FC = () => {
                   <select
                     value={draft.concurrentGenerations}
                     onChange={e => updateDraft({ concurrentGenerations: Number(e.target.value) })}
-                    className="w-full border border-gray-300 rounded-md px-2 py-2"
+                    className="w-full border border-gray-300 rounded-md px-2 py-2.5 sm:py-2 touch-manipulation min-h-[44px] sm:min-h-0"
                   >
                     {[1, 2, 3, 4].map(count => (
                       <option key={count} value={count}>{count} at once</option>
@@ -369,7 +369,7 @@ export const SettingsPanel: React.FC = () => {
                   <select
                     value={draft.imageResolution}
                     onChange={e => updateDraft({ imageResolution: e.target.value as 'standard' | 'high' })}
-                    className="w-full border border-gray-300 rounded-md px-2 py-2"
+                    className="w-full border border-gray-300 rounded-md px-2 py-2.5 sm:py-2 touch-manipulation min-h-[44px] sm:min-h-0"
                   >
                     <option value="standard">Standard</option>
                     <option value="high">High</option>
@@ -380,24 +380,25 @@ export const SettingsPanel: React.FC = () => {
           </Section>
 
           <Section title="Rendering" description="Balance fidelity with responsiveness">
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-2 gap-2 sm:gap-3">
               <div>
                 <FieldLabel label="Thumbnails" />
                 <select
                   value={draft.thumbnailQuality}
                   onChange={e => updateDraft({ thumbnailQuality: e.target.value as typeof draft.thumbnailQuality })}
-                  className="w-full border border-gray-300 rounded-md px-2 py-2"
+                  className="w-full border border-gray-300 rounded-md px-2 py-2.5 sm:py-2 touch-manipulation min-h-[44px] sm:min-h-0"
                 >
                   <option value="balanced">Balanced</option>
                   <option value="performance">Performance</option>
                   <option value="detailed">Detailed</option>
                 </select>
               </div>
-              <label className="flex items-center gap-2 text-sm font-semibold text-gray-800">
+              <label className="flex items-center gap-2 text-xs sm:text-sm font-semibold text-gray-800 touch-manipulation min-h-[44px]">
                 <input
                   type="checkbox"
                   checked={draft.lazyThumbnails}
                   onChange={e => updateDraft({ lazyThumbnails: e.target.checked })}
+                  className="w-5 h-5 sm:w-4 sm:h-4"
                 />
                 Lazy-load outline art
               </label>
@@ -406,7 +407,7 @@ export const SettingsPanel: React.FC = () => {
                 <select
                   value={draft.animationDensity}
                   onChange={e => updateDraft({ animationDensity: e.target.value as typeof draft.animationDensity })}
-                  className="w-full border border-gray-300 rounded-md px-2 py-2"
+                  className="w-full border border-gray-300 rounded-md px-2 py-2.5 sm:py-2 touch-manipulation min-h-[44px] sm:min-h-0"
                 >
                   <option value="minimal">Minimal</option>
                   <option value="balanced">Balanced</option>
@@ -421,20 +422,20 @@ export const SettingsPanel: React.FC = () => {
                   max={6}
                   value={draft.prefetchDepth}
                   onChange={e => updateDraft({ prefetchDepth: Number(e.target.value) })}
-                  className="w-full border border-gray-300 rounded-md px-2 py-2"
+                  className="w-full border border-gray-300 rounded-md px-2 py-2.5 sm:py-2 touch-manipulation min-h-[44px] sm:min-h-0"
                 />
               </div>
             </div>
           </Section>
 
           <Section title="Accessibility & Theme" description="Improve readability and comfort">
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-2 gap-2 sm:gap-3">
               <div>
                 <FieldLabel label="Theme" />
                 <select
                   value={draft.theme}
                   onChange={e => updateDraft({ theme: e.target.value as typeof draft.theme })}
-                  className="w-full border border-gray-300 rounded-md px-2 py-2"
+                  className="w-full border border-gray-300 rounded-md px-2 py-2.5 sm:py-2 touch-manipulation min-h-[44px] sm:min-h-0"
                 >
                   <option value="light">Light</option>
                   <option value="dark">Dark</option>
@@ -449,22 +450,24 @@ export const SettingsPanel: React.FC = () => {
                   max={120}
                   value={draft.fontScale}
                   onChange={e => updateDraft({ fontScale: Number(e.target.value) })}
-                  className="w-full border border-gray-300 rounded-md px-2 py-2"
+                  className="w-full border border-gray-300 rounded-md px-2 py-2.5 sm:py-2 touch-manipulation min-h-[44px] sm:min-h-0"
                 />
               </div>
-              <label className="flex items-center gap-2 text-sm font-semibold text-gray-800">
+              <label className="flex items-center gap-2 text-xs sm:text-sm font-semibold text-gray-800 touch-manipulation min-h-[44px]">
                 <input
                   type="checkbox"
                   checked={draft.highContrast}
                   onChange={e => updateDraft({ highContrast: e.target.checked })}
+                  className="w-5 h-5 sm:w-4 sm:h-4"
                 />
                 High contrast mode
               </label>
-              <label className="flex items-center gap-2 text-sm font-semibold text-gray-800">
+              <label className="flex items-center gap-2 text-xs sm:text-sm font-semibold text-gray-800 touch-manipulation min-h-[44px]">
                 <input
                   type="checkbox"
                   checked={draft.reducedMotion}
                   onChange={e => updateDraft({ reducedMotion: e.target.checked })}
+                  className="w-5 h-5 sm:w-4 sm:h-4"
                 />
                 Reduce motion
               </label>
@@ -472,49 +475,51 @@ export const SettingsPanel: React.FC = () => {
           </Section>
 
           <Section title="Notifications & Logging" description="Control signal-to-noise for system feedback">
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-2 gap-2 sm:gap-3">
               <div>
                 <FieldLabel label="Log verbosity" />
                 <select
                   value={draft.logVerbosity}
                   onChange={e => updateDraft({ logVerbosity: e.target.value as typeof draft.logVerbosity })}
-                  className="w-full border border-gray-300 rounded-md px-2 py-2"
+                  className="w-full border border-gray-300 rounded-md px-2 py-2.5 sm:py-2 touch-manipulation min-h-[44px] sm:min-h-0"
                 >
                   <option value="errors">Errors only</option>
                   <option value="normal">Normal</option>
                   <option value="verbose">Verbose</option>
                 </select>
               </div>
-              <label className="flex items-center gap-2 text-sm font-semibold text-gray-800">
+              <label className="flex items-center gap-2 text-xs sm:text-sm font-semibold text-gray-800 touch-manipulation min-h-[44px]">
                 <input
                   type="checkbox"
                   checked={draft.stickyNotifications}
                   onChange={e => updateDraft({ stickyNotifications: e.target.checked })}
+                  className="w-5 h-5 sm:w-4 sm:h-4"
                 />
-                Persist toasts until dismissed
+                Persist toasts
               </label>
             </div>
           </Section>
 
           <Section title="Exports" description="Defaults for PDF and downloads">
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-2 gap-2 sm:gap-3">
               <div>
                 <FieldLabel label="PDF quality" />
                 <select
                   value={draft.pdfQuality}
                   onChange={e => updateDraft({ pdfQuality: e.target.value as typeof draft.pdfQuality })}
-                  className="w-full border border-gray-300 rounded-md px-2 py-2"
+                  className="w-full border border-gray-300 rounded-md px-2 py-2.5 sm:py-2 touch-manipulation min-h-[44px] sm:min-h-0"
                 >
                   <option value="compact">Compact</option>
                   <option value="standard">Standard</option>
                   <option value="print">Print</option>
                 </select>
               </div>
-              <label className="flex items-center gap-2 text-sm font-semibold text-gray-800">
+              <label className="flex items-center gap-2 text-xs sm:text-sm font-semibold text-gray-800 touch-manipulation min-h-[44px]">
                 <input
                   type="checkbox"
                   checked={draft.includeMetadata}
                   onChange={e => updateDraft({ includeMetadata: e.target.checked })}
+                  className="w-5 h-5 sm:w-4 sm:h-4"
                 />
                 Include metadata
               </label>
@@ -523,7 +528,7 @@ export const SettingsPanel: React.FC = () => {
                 <select
                   value={draft.defaultExportRange}
                   onChange={e => updateDraft({ defaultExportRange: e.target.value as typeof draft.defaultExportRange })}
-                  className="w-full border border-gray-300 rounded-md px-2 py-2"
+                  className="w-full border border-gray-300 rounded-md px-2 py-2.5 sm:py-2 touch-manipulation min-h-[44px] sm:min-h-0"
                 >
                   <option value="all">All pages</option>
                   <option value="story-only">Story only</option>
@@ -534,20 +539,20 @@ export const SettingsPanel: React.FC = () => {
           </Section>
         </div>
 
-        <div className="sticky bottom-0 bg-white/95 backdrop-blur border-t border-gray-200 px-4 py-3 flex items-center justify-between gap-3">
-          <div className="flex items-center gap-2 text-xs text-gray-600">
-            <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-            Changes auto-save locally. Press <kbd className="px-1 border border-gray-400 rounded">S</kbd> to toggle.
+        <div className="sticky bottom-0 bg-white/95 backdrop-blur border-t border-gray-200 px-3 sm:px-4 py-2 sm:py-3 flex items-center justify-between gap-2 sm:gap-3">
+          <div className="flex items-center gap-2 text-[10px] sm:text-xs text-gray-600 flex-1 min-w-0">
+            <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse flex-shrink-0" />
+            <span className="truncate">Auto-save enabled</span>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 flex-shrink-0">
             <button
-              className="comic-btn bg-white text-black text-sm px-3 py-2"
+              className="comic-btn bg-white text-black text-xs sm:text-sm px-3 py-2.5 sm:py-2 touch-manipulation min-h-[44px] sm:min-h-0"
               onClick={resetSettings}
             >
               Reset
             </button>
             <button
-              className="comic-btn bg-black text-white text-sm px-3 py-2 disabled:opacity-60"
+              className="comic-btn bg-black text-white text-xs sm:text-sm px-3 py-2.5 sm:py-2 disabled:opacity-60 touch-manipulation min-h-[44px] sm:min-h-0"
               onClick={saveSettings}
               disabled={!isDirty}
             >
