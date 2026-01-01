@@ -4,7 +4,8 @@
  * SPDX-License-Identifier: Apache-2.0
 */
 
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
+import { useBook } from '../context/BookContext';
 
 interface DirectorInputProps {
     onContinue: (instruction: string) => void;
@@ -13,6 +14,17 @@ interface DirectorInputProps {
 
 export const DirectorInput: React.FC<DirectorInputProps> = ({ onContinue, isGenerating = false }) => {
     const [instruction, setInstruction] = useState("");
+    const { state } = useBook();
+
+    const heroName = state.hero?.name?.trim() || 'your hero';
+    const friendName = state.friend?.name?.trim() || 'your sidekick';
+    const setting = state.currentWorld?.name?.trim() || state.config.genre || 'the city';
+
+    const branchOptions = useMemo(() => ([
+        `${heroName} leads a stealthy infiltration into ${setting}, slipping past patrols to plant evidence of the villain's hidden lair.`,
+        `${friendName} stages a bold distraction while ${heroName} races to free civilians trapped in a collapsing tower downtown.`,
+        `A forbidden relic activates, warping ${setting} into a surreal battleground where allies and enemies suddenly switch sides.`
+    ]), [friendName, heroName, setting]);
 
     return (
         <div className="w-full h-full bg-[#f0f0f0] p-8 flex flex-col items-center justify-center relative overflow-hidden border-r-4 border-gray-300">
@@ -31,6 +43,21 @@ export const DirectorInput: React.FC<DirectorInputProps> = ({ onContinue, isGene
                  <p className="font-sans text-sm text-gray-600 mb-2">
                      You are the director. Guide the AI for the next few pages. Be specific about plot twists, character actions, or sudden events.
                  </p>
+
+                 <div className="grid grid-cols-1 gap-3 mb-4">
+                     {branchOptions.map((option, index) => (
+                         <button
+                            key={option}
+                            type="button"
+                            onClick={() => onContinue(option)}
+                            disabled={isGenerating}
+                            className={`comic-btn w-full text-left text-lg py-3 px-4 ${isGenerating ? 'bg-gray-300 text-gray-700 cursor-not-allowed' : 'bg-yellow-300 hover:bg-yellow-200'}`}
+                         >
+                             <span className="font-comic mr-2">{String.fromCharCode(65 + index)}.</span>
+                             {option}
+                         </button>
+                     ))}
+                 </div>
 
                  <textarea
                     value={instruction}
