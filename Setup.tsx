@@ -189,7 +189,7 @@ export const Setup: React.FC<SetupProps> = (props) => {
             window.removeEventListener('online', handleOnline);
             window.removeEventListener('offline', handleOffline);
         };
-    }, [props.show, loadWorlds, addNotification, refreshLibrary, libraryRestored, hadLibraryAccess]);
+    }, [props.show, loadWorlds, addNotification, refreshLibrary, libraryRestored]);
 
     useEffect(() => {
         if (props.hero?.name && props.hero.name.length > 2 && props.hero.base64) {
