@@ -85,7 +85,7 @@ export const useApiKey = () => {
     setTestResult(null);
     try {
       const ai = new GoogleGenAI({ apiKey: candidateKey });
-      const result = await ai.models.listModels({ pageSize: 1 });
+      const result = await ai.models.list({ config: { pageSize: 1 } });
       const modelName = result.models?.[0]?.name || 'Gemini API';
       if (typeof localStorage !== 'undefined') {
         localStorage.setItem('userApiKey', candidateKey);
