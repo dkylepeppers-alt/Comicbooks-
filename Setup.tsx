@@ -159,8 +159,12 @@ export const Setup: React.FC<SetupProps> = (props) => {
         const verifyAndLoad = async () => {
             try {
                 const stillConnected = await StorageService.verifyActiveConnection();
-                setHadLibraryAccess(prev => prev || stillConnected);
-                if (!stillConnected && hadLibraryAccess) {
+                let hadAccessBefore = false;
+                setHadLibraryAccess(prev => {
+                    hadAccessBefore = prev;
+                    return prev || stillConnected;
+                });
+                if (!stillConnected && hadAccessBefore) {
                     addNotification('warning', 'Lost access to your local library. Please reconnect.');
                 }
             } catch (error) {
