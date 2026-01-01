@@ -34,7 +34,7 @@ class Logger {
     }
 
     // Echo to console for immediate visibility
-    // eslint-disable-next-line no-console
+     
     console.error(`[Comicbooks][Error] ${message}`, context, details);
   }
 

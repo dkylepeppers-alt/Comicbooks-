@@ -4,12 +4,12 @@
  * SPDX-License-Identifier: Apache-2.0
 */
 
-import React, { useCallback, useMemo } from 'react';
 import jsPDF from 'jspdf';
-import { TOTAL_PAGES } from './types';
-import { Panel } from './Panel';
-import { useBook } from './context/BookContext';
+import React, { useCallback, useMemo } from 'react';
 import { DirectorInput } from './components/DirectorInput';
+import { useBook } from './context/BookContext';
+import { Panel } from './Panel';
+import { TOTAL_PAGES } from './types';
 
 export const Book: React.FC = () => {
     const { state, actions } = useBook();

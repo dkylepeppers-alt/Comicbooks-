@@ -4,8 +4,8 @@
 */
 
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
-import { ModelPreset } from '../types';
 import { StorageService } from '../services/storage';
+import { ModelPreset } from '../types';
 
 const DEFAULT_MODEL_PRESETS: ModelPreset[] = [
   {

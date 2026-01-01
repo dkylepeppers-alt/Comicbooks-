@@ -5,9 +5,9 @@
 */
 
 import React from 'react';
-import { ComicFace, INITIAL_PAGES, GATE_PAGE } from './types';
-import { LoadingFX } from './LoadingFX';
 import { useBook } from './context/BookContext';
+import { LoadingFX } from './LoadingFX';
+import { ComicFace, INITIAL_PAGES, GATE_PAGE } from './types';
 
 interface PanelProps {
     face?: ComicFace;
