@@ -582,7 +582,7 @@ export const Setup: React.FC<SetupProps> = (props) => {
                 </div>
 
                 <button onClick={props.onLaunch} disabled={!props.hero || props.isTransitioning || !isOnline} className="comic-btn bg-red-600 text-white text-xl sm:text-2xl md:text-3xl px-4 py-4 sm:px-6 sm:py-3 w-full hover:bg-red-500 disabled:bg-gray-400 disabled:cursor-not-allowed uppercase tracking-wider touch-manipulation min-h-[60px]">
-                    {props.isTransitioning ? 'LAUNCHING...' : isOnline ? 'START ADVENTURE!' : 'OFFLINE'}
+                    {props.isTransitioning ? 'LAUNCHING...' : isOnline ? 'START ADVENTURE!' : 'OFFLINE - CANNOT LAUNCH'}
                 </button>
             </div>
           </div>

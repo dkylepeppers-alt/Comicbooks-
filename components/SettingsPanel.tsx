@@ -310,7 +310,7 @@ export const SettingsPanel: React.FC = () => {
                 className={`comic-btn text-xs sm:text-sm py-2.5 sm:py-2 touch-manipulation min-h-[44px] sm:min-h-0 ${draft.reducedMotion ? 'bg-emerald-600 text-white' : 'bg-white text-black'}`}
                 onClick={() => updateDraft({ reducedMotion: !draft.reducedMotion })}
               >
-                {draft.reducedMotion ? 'Reduced' : 'Motion On'}
+                {draft.reducedMotion ? 'Motion Off' : 'Motion On'}
               </button>
               <button
                 className="comic-btn text-xs sm:text-sm py-2.5 sm:py-2 bg-white text-black col-span-2 touch-manipulation min-h-[44px] sm:min-h-0 truncate"
@@ -495,7 +495,7 @@ export const SettingsPanel: React.FC = () => {
                   onChange={e => updateDraft({ stickyNotifications: e.target.checked })}
                   className="w-5 h-5 sm:w-4 sm:h-4"
                 />
-                Persist toasts
+                Sticky toasts
               </label>
             </div>
           </Section>
