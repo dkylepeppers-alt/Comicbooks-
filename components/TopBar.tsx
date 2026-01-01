@@ -32,14 +32,18 @@ export const TopBar: React.FC = () => {
     : 'Idle';
 
   const handleNewBook = () => {
-    const canReset = state.status === 'setup'
+    const wasInSetup = state.status === 'setup';
+    const canReset = wasInSetup
       ? true
       : window.confirm('Start a brand new book? Ongoing generation will be cancelled.');
 
     if (!canReset) return;
 
     actions.startNewBook();
-    actions.addNotification('info', 'Starting a fresh book — set up your next adventure!');
+
+    if (!wasInSetup) {
+      actions.addNotification('info', 'Starting a fresh book — set up your next adventure!');
+    }
   };
 
   const handleLibrary = () => {
