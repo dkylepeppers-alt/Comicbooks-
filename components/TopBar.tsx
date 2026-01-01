@@ -100,6 +100,10 @@ export const TopBar: React.FC = () => {
           )}
           {!isCollapsed && (
             <div className="hidden lg:flex items-center gap-2">
+              {!networkStatus.online && <StatusChip label="📡 Offline" tone="warn" />}
+              {networkStatus.online && networkStatus.effectiveType && ['slow-2g', '2g'].includes(networkStatus.effectiveType) && (
+                <StatusChip label="🐌 Slow Connection" tone="warn" />
+              )}
               <StatusChip label={statusLabel} tone={state.status === 'generating' ? 'warn' : 'info'} />
               <StatusChip label={`Tasks: ${activeTasks}`} tone={state.loadingProgress ? 'warn' : 'success'} />
               {isDirty && <StatusChip label="Unsaved settings" tone="warn" />}
