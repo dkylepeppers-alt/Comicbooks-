@@ -128,7 +128,10 @@ export const Setup: React.FC<SetupProps> = (props) => {
             .then(setSavedCharacters)
             .catch(error => {
                 console.error('Failed to load character library:', error);
-                addNotification('error', 'Failed to load saved characters. Please try reconnecting your library.');
+                const errorMsg = error instanceof Error && error.message 
+                    ? error.message 
+                    : 'Failed to load saved characters. Please try reconnecting your library.';
+                addNotification('error', errorMsg);
             });
     }, [addNotification]);
 
@@ -147,7 +150,8 @@ export const Setup: React.FC<SetupProps> = (props) => {
                         actions.addNotification('success', 'Reconnected to your local library', 2500);
                     } catch (error) {
                         console.error('Failed to load worlds after restoring library:', error);
-                        actions.addNotification('warning', 'Library reconnected but worlds could not be loaded');
+                        const errorMsg = error instanceof Error ? error.message : 'Library reconnected but worlds could not be loaded';
+                        actions.addNotification('warning', errorMsg);
                     }
                 }
 
@@ -183,7 +187,8 @@ export const Setup: React.FC<SetupProps> = (props) => {
             refreshLibrary();
             loadWorlds().catch((error: Error) => {
                 console.error('Failed to load worlds:', error);
-                addNotification('error', 'Failed to load saved worlds. Please try reconnecting your library.');
+                const errorMsg = error?.message || 'Failed to load saved worlds. Please try reconnecting your library.';
+                addNotification('error', errorMsg);
             });
         };
 
@@ -302,7 +307,8 @@ export const Setup: React.FC<SetupProps> = (props) => {
                 refreshLibrary();
                 actions.loadWorlds().catch((error: Error) => {
                     console.error('Failed to load worlds after connection:', error);
-                    actions.addNotification('warning', 'Library connected but failed to load worlds');
+                    const errorMsg = error?.message || 'Library connected but failed to load worlds';
+                    actions.addNotification('warning', errorMsg);
                 });
             } else {
                 actions.addNotification('info', 'Library connection cancelled');
