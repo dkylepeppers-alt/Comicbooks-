@@ -157,6 +157,7 @@ export type ComicAction =
   | { type: 'UPDATE_CONFIG'; payload: Partial<StoryConfig> }
   | { type: 'START_ADVENTURE' }
   | { type: 'TRANSITION_COMPLETE' }
+  | { type: 'CANCEL_GENERATION'; payload?: { status?: EngineStatus } }
   | { type: 'ADD_FACES'; payload: ComicFace[] }
   | { type: 'UPDATE_FACE'; payload: { id: string; updates: Partial<ComicFace> } }
   | { type: 'SET_SHEET_INDEX'; payload: number }

@@ -23,10 +23,13 @@ const getAI = () => {
   if (!navigator.onLine) {
     throw new Error("OFFLINE: Please check your internet connection.");
   }
-  if (!process.env.API_KEY) {
+  const storedKey = typeof localStorage !== 'undefined' ? localStorage.getItem('userApiKey') : undefined;
+  const apiKey = storedKey || process.env.API_KEY;
+
+  if (!apiKey) {
     throw new Error("API_KEY_INVALID");
   }
-  return new GoogleGenAI({ apiKey: process.env.API_KEY });
+  return new GoogleGenAI({ apiKey });
 };
 
 /**

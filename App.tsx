@@ -16,7 +16,18 @@ import { Persona } from './types';
 
 const AppContent: React.FC = () => {
   const { state, actions } = useBook();
-  const { showApiKeyDialog, setShowApiKeyDialog, validateApiKey, handleApiKeyDialogContinue } = useApiKey();
+  const {
+    showApiKeyDialog,
+    setShowApiKeyDialog,
+    validateApiKey,
+    handleApiKeyDialogContinue,
+    handleApiKeySave,
+    apiKeyInput,
+    setApiKeyInput,
+    testApiKey,
+    isTestingKey,
+    testResult,
+  } = useApiKey();
 
   // Check for API key on mount
   React.useEffect(() => {
@@ -25,7 +36,7 @@ const AppContent: React.FC = () => {
 
   // Sync API errors from state to the dialog hook
   React.useEffect(() => {
-    if (state.error === 'API_KEY_ERROR') {
+    if (state.error === 'API_KEY_ERROR' && !showApiKeyDialog) {
       // Use setTimeout to ensure loading states have been cleared
       // and give React a chance to complete any pending renders
       const timeoutId = setTimeout(() => {
@@ -35,7 +46,7 @@ const AppContent: React.FC = () => {
 
       return () => clearTimeout(timeoutId);
     }
-  }, [state.error, setShowApiKeyDialog, actions]);
+  }, [state.error, showApiKeyDialog, setShowApiKeyDialog, actions]);
 
   const handleHeroUpload = async (file: File) => {
     // Validate file type
@@ -129,7 +140,17 @@ const AppContent: React.FC = () => {
 
   return (
     <div className="comic-scene">
-      {showApiKeyDialog && <ApiKeyDialog onContinue={handleApiKeyDialogContinue} />}
+      {showApiKeyDialog && (
+        <ApiKeyDialog
+          onContinue={handleApiKeyDialogContinue}
+          onSaveKey={handleApiKeySave}
+          onTestKey={testApiKey}
+          apiKey={apiKeyInput}
+          onApiKeyChange={setApiKeyInput}
+          isTesting={isTestingKey}
+          testResult={testResult}
+        />
+      )}
 
       <NotificationToast
         notifications={state.notifications}
