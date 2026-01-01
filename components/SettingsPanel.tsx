@@ -5,6 +5,8 @@
 
 import React from 'react';
 import { useSettings } from '../context/SettingsContext';
+import { useModelPresets } from '../context/ModelPresetContext';
+import { useBook } from '../context/BookContext';
 
 const Section: React.FC<{ title: string; children: React.ReactNode; description?: string }>
   = ({ title, children, description }) => (
@@ -38,6 +40,77 @@ export const SettingsPanel: React.FC = () => {
     saveSettings,
     resetSettings,
   } = useSettings();
+  const { presets, savePreset, createPreset, resetPreset, getPresetById, defaultPresets } = useModelPresets();
+  const { state, actions } = useBook();
+
+  const [selectedPresetId, setSelectedPresetId] = React.useState<string>(state.config.modelPresetId || presets[0]?.id || '');
+  const [promptDraft, setPromptDraft] = React.useState('');
+  const [modelDraft, setModelDraft] = React.useState('');
+
+  React.useEffect(() => {
+    const preset = getPresetById(state.config.modelPresetId) || presets[0];
+    if (preset) {
+      setSelectedPresetId(preset.id);
+      setPromptDraft(preset.prompt);
+      setModelDraft(preset.model);
+    }
+  }, [getPresetById, presets, state.config.modelPresetId]);
+
+  const handlePresetChange = (id: string) => {
+    const preset = getPresetById(id) || presets.find(p => p.id === id);
+    if (!preset) return;
+    setSelectedPresetId(preset.id);
+    setPromptDraft(preset.prompt);
+    setModelDraft(preset.model);
+    actions.updateConfig({
+      modelPresetId: preset.id,
+      modelPresetModel: preset.model,
+      modelPresetPrompt: preset.prompt,
+    });
+  };
+
+  const handleSavePreset = async () => {
+    const existing = getPresetById(selectedPresetId);
+    if (!existing) return;
+    await savePreset({
+      ...existing,
+      model: modelDraft,
+      prompt: promptDraft,
+    });
+    actions.updateConfig({
+      modelPresetId: existing.id,
+      modelPresetModel: modelDraft,
+      modelPresetPrompt: promptDraft,
+    });
+  };
+
+  const handleCreatePreset = async () => {
+    const name = window.prompt('Name your preset', 'New preset');
+    if (!name) return;
+    const created = await createPreset(name, { model: modelDraft, prompt: promptDraft });
+    if (created) {
+      setSelectedPresetId(created.id);
+      actions.updateConfig({
+        modelPresetId: created.id,
+        modelPresetModel: created.model,
+        modelPresetPrompt: created.prompt,
+      });
+    }
+  };
+
+  const handleResetPreset = async () => {
+    await resetPreset(selectedPresetId);
+    const reset = getPresetById(selectedPresetId) || defaultPresets.find(p => p.id === selectedPresetId) || presets[0];
+    if (reset) {
+      setPromptDraft(reset.prompt);
+      setModelDraft(reset.model);
+      actions.updateConfig({
+        modelPresetId: reset.id,
+        modelPresetModel: reset.model,
+        modelPresetPrompt: reset.prompt,
+      });
+    }
+  };
 
   if (!isPanelOpen) return null;
 
@@ -71,6 +144,56 @@ export const SettingsPanel: React.FC = () => {
         </div>
 
         <div className="px-4 py-4 space-y-5">
+          <Section title="Model Presets" description="Store prompt baselines with your offline library and pick one for this book">
+            <div className="space-y-3">
+              <div>
+                <FieldLabel label="Preset" hint="Defaults plus any saved variants" />
+                <select
+                  value={selectedPresetId}
+                  onChange={e => handlePresetChange(e.target.value)}
+                  className="w-full border border-gray-300 rounded-md px-2 py-2"
+                >
+                  {presets.map(preset => (
+                    <option key={preset.id} value={preset.id}>
+                      {preset.name} ({preset.model})
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div className="grid grid-cols-1 gap-3">
+                <div>
+                  <FieldLabel label="Model" hint="Text generation target" />
+                  <input
+                    type="text"
+                    value={modelDraft}
+                    onChange={e => setModelDraft(e.target.value)}
+                    className="w-full border border-gray-300 rounded-md px-2 py-2"
+                  />
+                </div>
+                <div>
+                  <FieldLabel label="Prompt template" hint="Editing here updates the preset" />
+                  <textarea
+                    value={promptDraft}
+                    onChange={e => setPromptDraft(e.target.value)}
+                    rows={6}
+                    className="w-full border border-gray-300 rounded-md px-2 py-2 font-mono text-sm"
+                  />
+                </div>
+              </div>
+              <div className="flex flex-wrap items-center gap-2">
+                <button className="comic-btn bg-black text-white text-sm px-3 py-2" onClick={handleSavePreset}>
+                  💾 Save preset
+                </button>
+                <button className="comic-btn bg-white text-black text-sm px-3 py-2" onClick={handleCreatePreset}>
+                  ➕ Create new
+                </button>
+                <button className="comic-btn bg-gray-100 text-black text-sm px-3 py-2" onClick={handleResetPreset}>
+                  ♻️ Revert to default
+                </button>
+              </div>
+            </div>
+          </Section>
+
           <Section title="Quick Toggles" description="Common switches surface at the top for speed">
             <div className="grid grid-cols-2 gap-3">
               <button

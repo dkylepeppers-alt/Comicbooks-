@@ -10,6 +10,7 @@ import { usePWA } from './hooks/usePWA';
 import { StorageService } from './services/storage';
 import { useBook } from './context/BookContext';
 import { WorldBuilder } from './components/WorldBuilder';
+import { useModelPresets } from './context/ModelPresetContext';
 
 interface SetupProps {
     show: boolean;
@@ -117,6 +118,7 @@ export const Setup: React.FC<SetupProps> = (props) => {
     const [savedCharacters, setSavedCharacters] = useState<(Persona & {id:string})[]>([]);
     const [showWorldBuilder, setShowWorldBuilder] = useState(false);
     const [isOnline, setIsOnline] = useState(navigator.onLine);
+    const { presets, getPresetById } = useModelPresets();
 
     const refreshLibrary = React.useCallback(() => {
         StorageService.getCharacters()
@@ -174,6 +176,32 @@ export const Setup: React.FC<SetupProps> = (props) => {
         }
         return undefined;
     }, [props.friend]);
+
+    useEffect(() => {
+        if (!props.config.modelPresetId && presets.length) {
+            const fallback = presets[0];
+            props.onConfigChange({
+                modelPresetId: fallback.id,
+                modelPresetModel: fallback.model,
+                modelPresetPrompt: fallback.prompt,
+            });
+        }
+    }, [presets, props.config.modelPresetId, props.onConfigChange]);
+
+    const activePreset = useMemo(() => {
+        return getPresetById(props.config.modelPresetId) || presets[0];
+    }, [getPresetById, presets, props.config.modelPresetId]);
+
+    const handlePresetSelect = (id: string) => {
+        const preset = getPresetById(id) || presets.find(p => p.id === id);
+        if (preset) {
+            props.onConfigChange({
+                modelPresetId: preset.id,
+                modelPresetModel: preset.model,
+                modelPresetPrompt: preset.prompt,
+            });
+        }
+    };
 
     const sortedCharacters = useMemo(() => {
         if (!state.currentWorld) return savedCharacters;
@@ -456,6 +484,26 @@ export const Setup: React.FC<SetupProps> = (props) => {
                                     <select value={props.config.language} onChange={(e) => props.onConfigChange({ language: e.target.value })} className="w-full font-comic text-lg p-2 border-2 border-black uppercase bg-white text-black cursor-pointer shadow-[3px_3px_0px_rgba(0,0,0,0.2)] rounded">
                                         {LANGUAGES.map(l => <option key={l.code} value={l.code} className="text-black">{l.name}</option>)}
                                     </select>
+                                </div>
+
+                                <div className="mb-1">
+                                    <p className="font-comic text-base mb-1 font-bold text-gray-800">MODEL PRESET</p>
+                                    <select
+                                        value={activePreset?.id || ''}
+                                        onChange={(e) => handlePresetSelect(e.target.value)}
+                                        className="w-full font-comic text-lg p-2 border-2 border-black uppercase bg-white text-black cursor-pointer shadow-[3px_3px_0px_rgba(0,0,0,0.2)] rounded"
+                                    >
+                                        {presets.map((preset) => (
+                                            <option key={preset.id} value={preset.id} className="text-black">
+                                                {preset.name} ({preset.model})
+                                            </option>
+                                        ))}
+                                    </select>
+                                    {activePreset && (
+                                        <p className="text-[11px] text-gray-600 mt-1 leading-snug">
+                                            <span className="font-semibold">Guidance:</span> {activePreset.prompt}
+                                        </p>
+                                    )}
                                 </div>
 
                                 <div className="mb-1">

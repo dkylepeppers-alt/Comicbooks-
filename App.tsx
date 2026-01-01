@@ -7,6 +7,7 @@
 import React from 'react';
 import { BookProvider, useBook } from './context/BookContext';
 import { SettingsProvider } from './context/SettingsContext';
+import { ModelPresetProvider } from './context/ModelPresetContext';
 import { Setup } from './Setup';
 import { Book } from './Book';
 import { useApiKey } from './useApiKey';
@@ -190,11 +191,13 @@ const AppContent: React.FC = () => {
 const App: React.FC = () => {
   return (
     <ErrorBoundary>
-      <SettingsProvider>
-        <BookProvider>
-          <AppContent />
-        </BookProvider>
-      </SettingsProvider>
+      <ModelPresetProvider>
+        <SettingsProvider>
+          <BookProvider>
+            <AppContent />
+          </BookProvider>
+        </SettingsProvider>
+      </ModelPresetProvider>
     </ErrorBoundary>
   );
 };
