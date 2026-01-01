@@ -5,19 +5,19 @@
 */
 
 import React from 'react';
-import { BookProvider, useBook } from './context/BookContext';
-import { SettingsProvider } from './context/SettingsContext';
-import { ModelPresetProvider } from './context/ModelPresetContext';
-import { Setup } from './Setup';
-import { Book } from './Book';
-import { useApiKey } from './useApiKey';
 import { ApiKeyDialog } from './ApiKeyDialog';
-import { NotificationToast } from './components/NotificationToast';
+import { Book } from './Book';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { GlobalLoadingIndicator } from './components/GlobalLoadingIndicator';
-import { TopBar } from './components/TopBar';
+import { NotificationToast } from './components/NotificationToast';
 import { SettingsPanel } from './components/SettingsPanel';
+import { TopBar } from './components/TopBar';
+import { BookProvider, useBook } from './context/BookContext';
+import { ModelPresetProvider } from './context/ModelPresetContext';
+import { SettingsProvider } from './context/SettingsContext';
+import { Setup } from './Setup';
 import { Persona } from './types';
+import { useApiKey } from './useApiKey';
 
 const AppContent: React.FC = () => {
   const { state, actions } = useBook();

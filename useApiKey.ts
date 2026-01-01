@@ -4,8 +4,8 @@
  * SPDX-License-Identifier: Apache-2.0
 */
 
-import { useCallback, useEffect, useState } from 'react';
 import { GoogleGenAI } from '@google/genai';
+import { useCallback, useEffect, useState } from 'react';
 
 // Interface for the injected window.aistudio object
 interface AIStudio {

@@ -4,9 +4,9 @@
 */
 
 import React from 'react';
-import { useSettings } from '../context/SettingsContext';
-import { useModelPresets } from '../context/ModelPresetContext';
 import { useBook } from '../context/BookContext';
+import { useModelPresets } from '../context/ModelPresetContext';
+import { useSettings } from '../context/SettingsContext';
 
 const Section: React.FC<{ title: string; children: React.ReactNode; description?: string }>
   = ({ title, children, description }) => (
