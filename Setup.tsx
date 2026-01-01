@@ -26,32 +26,16 @@ interface SetupProps {
 }
 
 const Footer = ({ isInstallable, isInstalled, onInstall, onConnectStorage }: { isInstallable: boolean, isInstalled: boolean, onInstall: () => void, onConnectStorage: () => void }) => {
-  const [remixIndex, setRemixIndex] = useState(0);
   const [isOnline, setIsOnline] = useState(navigator.onLine);
-  
-  const remixes = [
-    "Add sounds to panels",
-    "Animate panels with Veo 3",
-    "Localize to Klingon",
-    "Add a villain generator",
-    "Print physical copies",
-    "Add voice narration",
-    "Create a shared universe"
-  ];
 
   useEffect(() => {
-    const interval = setInterval(() => {
-      setRemixIndex(prev => (prev + 1) % remixes.length);
-    }, 3000);
-    
     const handleOnline = () => setIsOnline(true);
     const handleOffline = () => setIsOnline(false);
-    
+
     window.addEventListener('online', handleOnline);
     window.addEventListener('offline', handleOffline);
-    
+
     return () => {
-        clearInterval(interval);
         window.removeEventListener('online', handleOnline);
         window.removeEventListener('offline', handleOffline);
     }
@@ -60,13 +44,8 @@ const Footer = ({ isInstallable, isInstalled, onInstall, onConnectStorage }: { i
   return (
     <div className={`fixed bottom-0 left-0 right-0 py-3 px-6 flex flex-col md:flex-row justify-between items-center z-[300] border-t-4 border-yellow-400 font-comic transition-colors ${isOnline ? 'bg-black text-white' : 'bg-red-800 text-gray-200'}`}>
         <div className="flex items-center gap-2 text-lg md:text-xl">
-            {!isOnline ? (
+            {!isOnline && (
                 <span className="text-white font-bold animate-pulse">⚠️ OFFLINE MODE - CHECK CONNECTION</span>
-            ) : (
-                <>
-                    <span className="text-yellow-400 font-bold">REMIX IDEA:</span>
-                    <span className="animate-pulse">{remixes[remixIndex]}</span>
-                </>
             )}
         </div>
         <div className="flex items-center gap-4 mt-2 md:mt-0">

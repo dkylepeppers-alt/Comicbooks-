@@ -6,6 +6,7 @@
 
 import React from 'react';
 import { BookProvider, useBook } from './context/BookContext';
+import { SettingsProvider } from './context/SettingsContext';
 import { Setup } from './Setup';
 import { Book } from './Book';
 import { useApiKey } from './useApiKey';
@@ -13,6 +14,8 @@ import { ApiKeyDialog } from './ApiKeyDialog';
 import { NotificationToast } from './components/NotificationToast';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { GlobalLoadingIndicator } from './components/GlobalLoadingIndicator';
+import { TopBar } from './components/TopBar';
+import { SettingsPanel } from './components/SettingsPanel';
 import { Persona } from './types';
 
 const AppContent: React.FC = () => {
@@ -140,7 +143,11 @@ const AppContent: React.FC = () => {
   };
 
   return (
-    <div className="comic-scene">
+    <div className="comic-shell">
+      <TopBar />
+      <SettingsPanel />
+
+      <div className="comic-scene pt-24">
       {showApiKeyDialog && (
         <ApiKeyDialog
           onContinue={handleApiKeyDialogContinue}
@@ -153,28 +160,29 @@ const AppContent: React.FC = () => {
         />
       )}
 
-      <NotificationToast
-        notifications={state.notifications}
-        onDismiss={actions.removeNotification}
-      />
+        <NotificationToast
+          notifications={state.notifications}
+          onDismiss={actions.removeNotification}
+        />
 
-      <Setup
-          show={state.status === 'setup'}
-          isTransitioning={state.status === 'generating'}
-          hero={state.hero}
-          friend={state.friend}
-          config={state.config}
-          onHeroUpload={handleHeroUpload}
-          onFriendUpload={handleFriendUpload}
-          onHeroUpdate={actions.updateHero}
-          onFriendUpdate={actions.updateFriend}
-          onConfigChange={actions.updateConfig}
-          onLaunch={actions.launchStory}
-      />
+        <Setup
+            show={state.status === 'setup'}
+            isTransitioning={state.status === 'generating'}
+            hero={state.hero}
+            friend={state.friend}
+            config={state.config}
+            onHeroUpload={handleHeroUpload}
+            onFriendUpload={handleFriendUpload}
+            onHeroUpdate={actions.updateHero}
+            onFriendUpdate={actions.updateFriend}
+            onConfigChange={actions.updateConfig}
+            onLaunch={actions.launchStory}
+        />
 
-      <GlobalLoadingIndicator />
+        <GlobalLoadingIndicator />
 
-      <Book />
+        <Book />
+      </div>
     </div>
   );
 };
@@ -182,9 +190,11 @@ const AppContent: React.FC = () => {
 const App: React.FC = () => {
   return (
     <ErrorBoundary>
-      <BookProvider>
-        <AppContent />
-      </BookProvider>
+      <SettingsProvider>
+        <BookProvider>
+          <AppContent />
+        </BookProvider>
+      </SettingsProvider>
     </ErrorBoundary>
   );
 };
