@@ -15,12 +15,13 @@ export const GlobalLoadingIndicator: React.FC = () => {
   const loadingFaces = useMemo(() => state.comicFaces.filter(face => face.isLoading), [state.comicFaces]);
   const showIndicator = progress || loadingFaces.length > 0;
 
-  if (!showIndicator) return null;
-
   useEffect(() => {
+    if (!showIndicator) return;
     const interval = setInterval(() => setNow(Date.now()), progress ? 500 : 1200);
     return () => clearInterval(interval);
-  }, [progress]);
+  }, [progress, showIndicator]);
+
+  if (!showIndicator) return null;
 
   const percentage = progress
     ? progress.percentage ?? Math.round((progress.current / progress.total) * 100)
