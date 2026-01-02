@@ -47,6 +47,28 @@ const setCachedBeat = (key: string, beat: Beat): void => {
   beatCache.set(key, { beat, timestamp: Date.now() });
 };
 
+/**
+ * Fetches an image from a URL and converts it to a base64 data URL
+ * @param imageUrl The URL of the image to fetch
+ * @returns Promise<string> The base64 data URL (e.g., "data:image/png;base64,...")
+ */
+const fetchAndConvertToBase64 = async (imageUrl: string): Promise<string> => {
+  const imageResponse = await fetch(imageUrl);
+  if (!imageResponse.ok) {
+    throw new Error(`Failed to fetch image: ${imageResponse.status} ${imageResponse.statusText}`);
+  }
+  
+  const imageBlob = await imageResponse.blob();
+  return new Promise<string>((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      resolve(reader.result as string);
+    };
+    reader.onerror = reject;
+    reader.readAsDataURL(imageBlob);
+  });
+};
+
 const getOpenRouterClient = (apiKey?: string) => {
   if (!navigator.onLine) {
     console.error("[OpenRouter Service] Network is offline");
@@ -155,29 +177,14 @@ export const OpenRouterService = {
         const imageUrl = urlMatch[0];
         console.log(`[OpenRouter Service] Image URL received for persona, fetching and converting to base64...`);
         
-        // Fetch the image and convert to base64
         try {
-          const imageResponse = await fetch(imageUrl);
-          if (!imageResponse.ok) {
-            throw new Error(`Failed to fetch image: ${imageResponse.status} ${imageResponse.statusText}`);
-          }
-          
-          const imageBlob = await imageResponse.blob();
-          const imageBase64 = await new Promise<string>((resolve, reject) => {
-            const reader = new FileReader();
-            reader.onloadend = () => {
-              const result = reader.result as string;
-              // Extract just the base64 data without the data URL prefix for consistency
-              const base64Data = (reader.result as string).split(',')[1] || '';
-              resolve(base64Data);
-            };
-            reader.onerror = reject;
-            reader.readAsDataURL(imageBlob);
-          });
+          const imageBase64 = await fetchAndConvertToBase64(imageUrl);
+          // Extract just the base64 data without the data URL prefix for consistency with Gemini
+          const base64Data = imageBase64.split(',')[1] || '';
           
           console.log(`[OpenRouter Service] Persona image converted to base64 successfully`);
           return { 
-            base64: imageBase64, 
+            base64: base64Data, 
             name: "Sidekick", 
             description: desc 
           };
@@ -500,24 +507,8 @@ OUTPUT STRICT JSON ONLY (No markdown formatting):
         const imageUrl = urlMatch[0];
         console.log(`[OpenRouter Service] Image URL received, fetching and converting to base64...`);
         
-        // Fetch the image and convert to base64
         try {
-          const imageResponse = await fetch(imageUrl);
-          if (!imageResponse.ok) {
-            throw new Error(`Failed to fetch image: ${imageResponse.status} ${imageResponse.statusText}`);
-          }
-          
-          const imageBlob = await imageResponse.blob();
-          const imageBase64 = await new Promise<string>((resolve, reject) => {
-            const reader = new FileReader();
-            reader.onloadend = () => {
-              const result = reader.result as string;
-              resolve(result);
-            };
-            reader.onerror = reject;
-            reader.readAsDataURL(imageBlob);
-          });
-          
+          const imageBase64 = await fetchAndConvertToBase64(imageUrl);
           console.log(`[OpenRouter Service] Image converted to base64 successfully`);
           return imageBase64;
         } catch (fetchError) {
