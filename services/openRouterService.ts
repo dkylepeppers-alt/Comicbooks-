@@ -86,6 +86,10 @@ const getOpenRouterClient = (apiKey?: string) => {
   console.log("[OpenRouter Service] API initialized successfully");
   return new OpenRouter({
     apiKey: key,
+    defaultHeaders: {
+      'HTTP-Referer': typeof window !== 'undefined' ? window.location.href : 'https://infinite-heroes.app',
+      'X-Title': 'Infinite Heroes - AI Comic Book Generator',
+    },
   });
 };
 
@@ -156,7 +160,7 @@ export const OpenRouterService = {
       
       const prompt = `STYLE: Masterpiece ${style} character sheet, detailed ink, neutral background. FULL BODY. Character: ${desc}`;
       
-      const response = await client.chat.completions.create({
+      const response = await client.chat.send({
         model: imageModel,
         messages: [
           {
@@ -164,6 +168,7 @@ export const OpenRouterService = {
             content: prompt,
           },
         ],
+        stream: false,
       });
 
       const elapsed = Date.now() - startTime;
@@ -365,7 +370,7 @@ OUTPUT STRICT JSON ONLY (No markdown formatting):
         }
 
         const client = getOpenRouterClient();
-        const response = await client.chat.completions.create({
+        const response = await client.chat.send({
             model: textModel,
             messages: [
               {
@@ -373,7 +378,7 @@ OUTPUT STRICT JSON ONLY (No markdown formatting):
                 content: prompt,
               },
             ],
-            response_format: { type: 'json_object' },
+            stream: false,
         });
 
         const elapsed = Date.now() - startTime;
@@ -494,7 +499,7 @@ OUTPUT STRICT JSON ONLY (No markdown formatting):
       console.log(`[OpenRouter Service] Calling OpenRouter API for image - Model: ${imageModel}, Timeout: ${TIMEOUT_CONFIG.IMAGE_GENERATION}ms`);
       
       // Call OpenRouter with the image generation model
-      const response = await client.chat.completions.create({
+      const response = await client.chat.send({
         model: imageModel,
         messages: [
           {
@@ -502,6 +507,7 @@ OUTPUT STRICT JSON ONLY (No markdown formatting):
             content: promptText,
           },
         ],
+        stream: false,
       });
 
       const elapsed = Date.now() - startTime;

@@ -99,8 +99,14 @@ export const SettingsPanel: React.FC = () => {
 
       setIsLoadingModels(true);
       try {
-        const client = new OpenRouter({ apiKey });
-        const response = await client.models.list({});
+        const client = new OpenRouter({
+          apiKey,
+          defaultHeaders: {
+            'HTTP-Referer': typeof window !== 'undefined' ? window.location.href : 'https://infinite-heroes.app',
+            'X-Title': 'Infinite Heroes - AI Comic Book Generator',
+          },
+        });
+        const response = await client.models.list();
         
         if (response.data && Array.isArray(response.data)) {
           const models = response.data.map((model: any) => ({
