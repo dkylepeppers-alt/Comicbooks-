@@ -10,6 +10,38 @@ import { useSettings } from '../context/SettingsContext';
 import { GoogleGenAI } from '@google/genai';
 import { OpenRouter } from '@openrouter/sdk';
 
+const CollapsibleSection: React.FC<{ 
+  id: string;
+  title: string; 
+  children: React.ReactNode; 
+  description?: string;
+  expanded: boolean;
+  onToggle: () => void;
+}>
+  = ({ id, title, children, description, expanded, onToggle }) => (
+  <section className="space-y-2 border-b border-gray-200 pb-3">
+    <button
+      onClick={onToggle}
+      className="w-full flex items-start justify-between gap-2 text-left hover:bg-gray-50 rounded p-2 -m-2 touch-manipulation"
+      aria-expanded={expanded}
+      aria-controls={`section-${id}`}
+    >
+      <div className="flex-1">
+        <p className="font-comic text-base sm:text-lg text-gray-900 flex items-center gap-2">
+          <span className="text-gray-500 text-sm">{expanded ? '▼' : '▶'}</span>
+          {title}
+        </p>
+        {description && <p className="text-xs text-gray-600 leading-snug ml-6">{description}</p>}
+      </div>
+    </button>
+    {expanded && (
+      <div id={`section-${id}`} className="grid grid-cols-1 gap-2 sm:gap-3 ml-6">
+        {children}
+      </div>
+    )}
+  </section>
+);
+
 const Section: React.FC<{ title: string; children: React.ReactNode; description?: string }>
   = ({ title, children, description }) => (
   <section className="space-y-2">
@@ -66,6 +98,13 @@ export const SettingsPanel: React.FC = () => {
   // Console log state
   const [consoleLogs, setConsoleLogs] = React.useState<Array<{ timestamp: string; type: string; message: string }>>([]);
   const [showConsole, setShowConsole] = React.useState(false);
+  const [consoleFilter, setConsoleFilter] = React.useState<'all' | 'error' | 'warn'>('all');
+  
+  // Collapsible sections state
+  const [expandedSections, setExpandedSections] = React.useState<Set<string>>(new Set(['provider', 'keys']));
+  
+  // Model search state
+  const [modelSearch, setModelSearch] = React.useState('');
 
   React.useEffect(() => {
     const preset = getPresetById(state.config.modelPresetId) || presets[0];
@@ -338,6 +377,31 @@ export const SettingsPanel: React.FC = () => {
     console.log('[Settings Panel] Cleared console logs');
   };
 
+  const toggleSection = (sectionId: string) => {
+    setExpandedSections(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(sectionId)) {
+        newSet.delete(sectionId);
+      } else {
+        newSet.add(sectionId);
+      }
+      return newSet;
+    });
+  };
+
+  const filteredModels = React.useMemo(() => {
+    if (!modelSearch.trim()) return openRouterModels;
+    const search = modelSearch.toLowerCase();
+    return openRouterModels.filter(m => 
+      m.name.toLowerCase().includes(search) || m.id.toLowerCase().includes(search)
+    );
+  }, [openRouterModels, modelSearch]);
+
+  const filteredLogs = React.useMemo(() => {
+    if (consoleFilter === 'all') return consoleLogs;
+    return consoleLogs.filter(log => log.type === consoleFilter);
+  }, [consoleLogs, consoleFilter]);
+
   if (!isPanelOpen) return null;
 
   return (
@@ -349,23 +413,29 @@ export const SettingsPanel: React.FC = () => {
       />
 
       <div className="relative w-full max-w-full sm:max-w-[420px] h-full bg-gradient-to-b from-white to-slate-50 border-l-4 border-black shadow-2xl animate-slide-in-right overflow-y-auto">
-        <div className="sticky top-0 z-10 bg-white/95 backdrop-blur border-b border-gray-200 px-3 sm:px-4 py-2 sm:py-3 flex items-center justify-between gap-2">
-          <div className="flex-1 min-w-0">
-            <p className="font-comic text-lg sm:text-xl text-gray-900 truncate">Settings</p>
-            <p className="text-[10px] sm:text-xs text-gray-600 truncate">Fine-tune models and rendering</p>
-          </div>
-          <div className="flex items-center gap-1 sm:gap-2 flex-shrink-0">
-            {isDirty && <span className="px-2 py-1 rounded-full bg-amber-100 text-amber-700 text-[10px] sm:text-[11px] font-semibold border border-amber-300">Unsaved</span>}
-            {lastSavedAt && (
-              <span className="text-[10px] sm:text-[11px] text-gray-500 hidden sm:inline">Saved {new Date(lastSavedAt).toLocaleTimeString()}</span>
-            )}
-            <button
-              className="w-10 h-10 sm:w-8 sm:h-8 rounded-full border-2 border-black bg-gray-100 hover:bg-gray-200 flex items-center justify-center touch-manipulation text-xl sm:text-base"
-              aria-label="Close settings"
-              onClick={closePanel}
-            >
-              ×
-            </button>
+        <div className="sticky top-0 z-10 bg-white/95 backdrop-blur border-b border-gray-200 px-3 sm:px-4 py-2 sm:py-3">
+          <div className="flex items-center justify-between gap-2 mb-2">
+            <div className="flex-1 min-w-0">
+              <p className="font-comic text-lg sm:text-xl text-gray-900 truncate">Settings</p>
+              <p className="text-[10px] sm:text-xs text-gray-600 truncate">
+                {state.config.aiProvider === 'openrouter' ? '🔄 OpenRouter' : '✨ Gemini'} • 
+                Text: {state.config.textModel || 'default'} • 
+                Image: {state.config.imageModel || 'default'}
+              </p>
+            </div>
+            <div className="flex items-center gap-1 sm:gap-2 flex-shrink-0">
+              {isDirty && <span className="px-2 py-1 rounded-full bg-amber-100 text-amber-700 text-[10px] sm:text-[11px] font-semibold border border-amber-300">Unsaved</span>}
+              {lastSavedAt && (
+                <span className="text-[10px] sm:text-[11px] text-gray-500 hidden sm:inline">Saved {new Date(lastSavedAt).toLocaleTimeString()}</span>
+              )}
+              <button
+                className="w-10 h-10 sm:w-8 sm:h-8 rounded-full border-2 border-black bg-gray-100 hover:bg-gray-200 flex items-center justify-center touch-manipulation text-xl sm:text-base"
+                aria-label="Close settings"
+                onClick={closePanel}
+              >
+                ×
+              </button>
+            </div>
           </div>
         </div>
 
@@ -387,19 +457,33 @@ export const SettingsPanel: React.FC = () => {
                 <div>
                   <FieldLabel label="Text Generation Model" hint="Model for narrative/dialogue" />
                   {state.config.aiProvider === 'openrouter' && openRouterModels.length > 0 ? (
-                    <select
-                      value={state.config.textModel}
-                      onChange={e => actions.updateConfig({ textModel: e.target.value })}
-                      className="w-full border border-gray-300 rounded-md px-2 py-2.5 sm:py-2 touch-manipulation min-h-[44px] sm:min-h-0"
-                      disabled={isLoadingModels}
-                    >
-                      <option value="">Select a model...</option>
-                      {openRouterModels.map(model => (
-                        <option key={model.id} value={model.id}>
-                          {model.name}
-                        </option>
-                      ))}
-                    </select>
+                    <>
+                      {openRouterModels.length > 10 && (
+                        <input
+                          type="text"
+                          value={modelSearch}
+                          onChange={e => setModelSearch(e.target.value)}
+                          placeholder="🔍 Search models..."
+                          className="w-full border border-gray-300 rounded-md px-2 py-2 mb-2 text-sm touch-manipulation min-h-[44px] sm:min-h-0"
+                        />
+                      )}
+                      <select
+                        value={state.config.textModel}
+                        onChange={e => actions.updateConfig({ textModel: e.target.value })}
+                        className="w-full border border-gray-300 rounded-md px-2 py-2.5 sm:py-2 touch-manipulation min-h-[44px] sm:min-h-0"
+                        disabled={isLoadingModels}
+                      >
+                        <option value="">Select a model...</option>
+                        {filteredModels.map(model => (
+                          <option key={model.id} value={model.id}>
+                            {model.name}
+                          </option>
+                        ))}
+                      </select>
+                      {modelSearch && filteredModels.length === 0 && (
+                        <p className="text-xs text-gray-600 mt-1">No models match "{modelSearch}"</p>
+                      )}
+                    </>
                   ) : (
                     <input
                       type="text"
@@ -423,7 +507,7 @@ export const SettingsPanel: React.FC = () => {
                       disabled={isLoadingModels}
                     >
                       <option value="">Select a model...</option>
-                      {openRouterModels.map(model => (
+                      {filteredModels.map(model => (
                         <option key={model.id} value={model.id}>
                           {model.name}
                         </option>
@@ -836,7 +920,7 @@ export const SettingsPanel: React.FC = () => {
 
           <Section title="Developer Console" description="View and download application logs for debugging">
             <div className="space-y-3">
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 flex-wrap">
                 <button
                   className="comic-btn bg-blue-500 text-white text-xs sm:text-sm px-3 py-2.5 sm:py-2 hover:bg-blue-400 touch-manipulation min-h-[44px] sm:min-h-0"
                   onClick={() => setShowConsole(!showConsole)}
@@ -848,7 +932,7 @@ export const SettingsPanel: React.FC = () => {
                   onClick={handleDownloadLogs}
                   disabled={consoleLogs.length === 0}
                 >
-                  ⬇️ Download Logs
+                  ⬇️ Download
                 </button>
                 <button
                   className="comic-btn bg-red-500 text-white text-xs sm:text-sm px-3 py-2.5 sm:py-2 hover:bg-red-400 touch-manipulation min-h-[44px] sm:min-h-0"
@@ -857,13 +941,26 @@ export const SettingsPanel: React.FC = () => {
                 >
                   🗑️ Clear
                 </button>
+                {showConsole && (
+                  <select
+                    value={consoleFilter}
+                    onChange={e => setConsoleFilter(e.target.value as 'all' | 'error' | 'warn')}
+                    className="border border-gray-300 rounded-md px-2 py-2 text-xs touch-manipulation min-h-[44px] sm:min-h-0"
+                  >
+                    <option value="all">All ({consoleLogs.length})</option>
+                    <option value="error">Errors ({consoleLogs.filter(l => l.type === 'error').length})</option>
+                    <option value="warn">Warnings ({consoleLogs.filter(l => l.type === 'warn').length})</option>
+                  </select>
+                )}
               </div>
               {showConsole && (
                 <div className="bg-gray-900 text-green-400 rounded-md p-3 max-h-96 overflow-y-auto font-mono text-xs">
-                  {consoleLogs.length === 0 ? (
-                    <div className="text-gray-500 text-center py-4">No logs captured yet</div>
+                  {filteredLogs.length === 0 ? (
+                    <div className="text-gray-500 text-center py-4">
+                      {consoleFilter === 'all' ? 'No logs captured yet' : `No ${consoleFilter} logs`}
+                    </div>
                   ) : (
-                    consoleLogs.map((log, idx) => (
+                    filteredLogs.map((log, idx) => (
                       <div
                         key={idx}
                         className={`py-1 ${
