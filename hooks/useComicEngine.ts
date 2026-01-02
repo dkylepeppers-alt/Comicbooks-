@@ -47,6 +47,22 @@ const initialState: ComicState = {
     modelPresetId: DEFAULT_MODEL_PRESETS[0]?.id || 'default-gemini-flash',
     modelPresetModel: DEFAULT_MODEL_PRESETS[0]?.model || 'gemini-3-flash-preview',
     modelPresetPrompt: DEFAULT_MODEL_PRESETS[0]?.prompt || '',
+    // Provider configuration defaults
+    aiProvider: 'gemini',
+    textModel: 'gemini-3-flash-preview',
+    imageModel: 'gemini-3-pro-image-preview',
+    // Model parameters
+    textModelParams: {
+      temperature: 0.7,
+      topP: 0.95,
+      maxTokens: 800,
+    },
+    imageModelParams: {
+      temperature: 0.7,
+    },
+    // Prompts
+    textPrompt: DEFAULT_MODEL_PRESETS[0]?.prompt || 'Prioritize brisk, punchy pacing with visually clear actions.',
+    imagePrompt: 'Generate vivid, detailed comic book art with clear character focus and dynamic composition.',
   },
   loadingProgress: null,
   error: null,

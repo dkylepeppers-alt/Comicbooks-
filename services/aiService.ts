@@ -13,9 +13,11 @@ import {
   World,
   MAX_STORY_PAGES,
   LANGUAGES,
-  TIMEOUT_CONFIG
+  TIMEOUT_CONFIG,
+  AIProvider
 } from '../types';
 import { retryWithBackoff } from '../utils/performanceUtils';
+import { OpenRouterService } from './openRouterService';
 
 const MODEL_IMAGE_GEN_NAME = "gemini-3-pro-image-preview";
 const MODEL_TEXT_NAME = "gemini-3-flash-preview";
@@ -116,8 +118,17 @@ export const AiService = {
   async generatePersona(
     desc: string,
     genre: string,
-    signal?: AbortSignal
+    signal?: AbortSignal,
+    provider: AIProvider = 'gemini',
+    imageModel?: string
   ): Promise<Persona> {
+    // Route to appropriate provider
+    if (provider === 'openrouter') {
+      const model = imageModel || 'openai/gpt-4-turbo-preview';
+      return OpenRouterService.generatePersona(desc, genre, model, signal);
+    }
+
+    // Default to Gemini
     const style = genre === 'Custom' ? "Modern American comic book art" : `${genre} comic`;
     const startTime = Date.now();
     
@@ -178,6 +189,22 @@ export const AiService = {
     userGuidance?: string, // Direct user control
     signal?: AbortSignal // AbortSignal for cancellation/timeout
   ): Promise<Beat> {
+    // Route to appropriate provider
+    if (config.aiProvider === 'openrouter') {
+      return OpenRouterService.generateBeat(
+        history,
+        pageNum,
+        isDecisionPage,
+        config,
+        hero,
+        friend,
+        world,
+        userGuidance,
+        signal
+      );
+    }
+
+    // Default to Gemini
     // Create cache key from page number and history length
     // Only cache when no user guidance (deterministic generation)
     const cacheKey = !userGuidance ? `beat-${pageNum}-${history.length}-${config.genre}-${config.language}` : null;
@@ -382,6 +409,20 @@ OUTPUT STRICT JSON ONLY (No markdown formatting):
     world: World | null,
     signal?: AbortSignal // AbortSignal for cancellation/timeout
   ): Promise<string> {
+    // Route to appropriate provider
+    if (config.aiProvider === 'openrouter') {
+      return OpenRouterService.generateImage(
+        beat,
+        type,
+        config,
+        hero,
+        friend,
+        world,
+        signal
+      );
+    }
+
+    // Default to Gemini
     const startTime = Date.now();
     
     return retryWithBackoff(

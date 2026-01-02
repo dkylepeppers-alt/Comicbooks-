@@ -11,18 +11,44 @@ const DEFAULT_MODEL_PRESETS: ModelPreset[] = [
   {
     id: 'default-gemini-flash',
     name: 'Cinematic Flash',
+    provider: 'gemini',
+    textModel: 'gemini-3-flash-preview',
+    imageModel: 'gemini-3-pro-image-preview',
+    textPrompt: 'Prioritize brisk, punchy pacing with visually clear actions. Keep captions lean and lean into bold comic energy. Maintain tight focus on core characters and avoid meandering exposition.',
+    imagePrompt: 'Generate vivid comic book art with clear character focus, dynamic composition, and detailed ink work.',
+    textModelParams: {
+      temperature: 0.7,
+      topP: 0.95,
+      maxTokens: 800,
+    },
+    imageModelParams: {
+      temperature: 0.7,
+    },
+    // Legacy compatibility
     model: 'gemini-3-flash-preview',
-    prompt:
-      'Prioritize brisk, punchy pacing with visually clear actions. Keep captions lean and lean into bold comic energy. Maintain tight focus on core characters and avoid meandering exposition.',
+    prompt: 'Prioritize brisk, punchy pacing with visually clear actions. Keep captions lean and lean into bold comic energy. Maintain tight focus on core characters and avoid meandering exposition.',
     isDefault: true,
     updatedAt: 0,
   },
   {
     id: 'default-gemini-pro',
     name: 'Immersive Pro',
+    provider: 'gemini',
+    textModel: 'gemini-3-pro-preview',
+    imageModel: 'gemini-3-pro-image-preview',
+    textPrompt: 'Aim for richer sensory detail and internal monologue. Allow slightly longer captions and dialogue to explore emotion while preserving comic readability and page cadence.',
+    imagePrompt: 'Create detailed, immersive comic book art with rich environmental details and emotional depth.',
+    textModelParams: {
+      temperature: 0.8,
+      topP: 0.95,
+      maxTokens: 1000,
+    },
+    imageModelParams: {
+      temperature: 0.75,
+    },
+    // Legacy compatibility
     model: 'gemini-3-pro-preview',
-    prompt:
-      'Aim for richer sensory detail and internal monologue. Allow slightly longer captions and dialogue to explore emotion while preserving comic readability and page cadence.',
+    prompt: 'Aim for richer sensory detail and internal monologue. Allow slightly longer captions and dialogue to explore emotion while preserving comic readability and page cadence.',
     isDefault: true,
     updatedAt: 0,
   },
@@ -81,11 +107,20 @@ export const ModelPresetProvider: React.FC<{ children: React.ReactNode }> = ({ c
   const createPreset = useCallback(async (name: string, base?: Partial<ModelPreset>) => {
     if (!name.trim()) return null;
     const id = `${name.toLowerCase().replace(/\s+/g, '-')}-${Date.now()}`;
+    const defaults = DEFAULT_MODEL_PRESETS[0];
     const preset: ModelPreset = {
       id,
       name,
-      model: base?.model || DEFAULT_MODEL_PRESETS[0].model,
-      prompt: base?.prompt || DEFAULT_MODEL_PRESETS[0].prompt,
+      provider: base?.provider || defaults.provider,
+      textModel: base?.textModel || defaults.textModel,
+      imageModel: base?.imageModel || defaults.imageModel,
+      textPrompt: base?.textPrompt || defaults.textPrompt,
+      imagePrompt: base?.imagePrompt || defaults.imagePrompt,
+      textModelParams: base?.textModelParams || defaults.textModelParams,
+      imageModelParams: base?.imageModelParams || defaults.imageModelParams,
+      // Legacy compatibility
+      model: base?.model || base?.textModel || defaults.textModel,
+      prompt: base?.prompt || base?.textPrompt || defaults.textPrompt,
       updatedAt: Date.now(),
       isDefault: false,
     };
@@ -103,11 +138,19 @@ export const ModelPresetProvider: React.FC<{ children: React.ReactNode }> = ({ c
     }
 
     const existing = presets.find((p) => p.id === id);
+    const defaults = DEFAULT_MODEL_PRESETS[0];
     if (existing) {
       await StorageService.saveModelPreset({
         ...existing,
-        prompt: DEFAULT_MODEL_PRESETS[0].prompt,
-        model: DEFAULT_MODEL_PRESETS[0].model,
+        textPrompt: defaults.textPrompt,
+        imagePrompt: defaults.imagePrompt,
+        textModel: defaults.textModel,
+        imageModel: defaults.imageModel,
+        textModelParams: defaults.textModelParams,
+        imageModelParams: defaults.imageModelParams,
+        // Legacy compatibility
+        prompt: defaults.prompt,
+        model: defaults.model,
         updatedAt: Date.now(),
       });
       await refreshPresets();
