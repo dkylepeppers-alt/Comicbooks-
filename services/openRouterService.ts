@@ -108,7 +108,14 @@ export const OpenRouterService = {
     const style = genre === 'Custom' ? "Modern American comic book art" : `${genre} comic`;
     const startTime = Date.now();
     
-    console.log(`[OpenRouter Service] Starting persona generation - Genre: ${genre}, Model: ${model}, Description: ${desc}`);
+    // Validate and correct invalid model names
+    let imageModel = model;
+    if (imageModel.includes('gemini')) {
+      console.warn(`[OpenRouter Service] Invalid model "${imageModel}" for OpenRouter. Gemini models are not available through OpenRouter. Falling back to openai/dall-e-3`);
+      imageModel = 'openai/dall-e-3';
+    }
+    
+    console.log(`[OpenRouter Service] Starting persona generation - Genre: ${genre}, Model: ${imageModel}, Description: ${desc}`);
     
     const client = getOpenRouterClient();
 
@@ -123,12 +130,12 @@ export const OpenRouterService = {
         throw timeoutSignal.reason || new Error('Operation aborted');
       }
 
-      console.log(`[OpenRouter Service] Calling OpenRouter API for character image - Model: ${model}, Timeout: ${TIMEOUT_CONFIG.PERSONA_GENERATION}ms`);
+      console.log(`[OpenRouter Service] Calling OpenRouter API for character image - Model: ${imageModel}, Timeout: ${TIMEOUT_CONFIG.PERSONA_GENERATION}ms`);
       
       const prompt = `STYLE: Masterpiece ${style} character sheet, detailed ink, neutral background. FULL BODY. Character: ${desc}`;
       
       const response = await client.chat.completions.create({
-        model: model,
+        model: imageModel,
         messages: [
           {
             role: 'user',
@@ -193,7 +200,7 @@ export const OpenRouterService = {
       
       // No image data found - throw error
       console.error(`[OpenRouter Service] No image data found in persona response`);
-      throw new Error(`Image generation model ${model} did not return valid image data for persona. Response: ${content.substring(0, 100)}`);
+      throw new Error(`Image generation model ${imageModel} did not return valid image data for persona. Response: ${content.substring(0, 100)}`);
     } catch (error) {
       const elapsed = Date.now() - startTime;
       console.error(`[OpenRouter Service] Persona generation failed after ${elapsed}ms`, error);
@@ -411,7 +418,13 @@ OUTPUT STRICT JSON ONLY (No markdown formatting):
     const startTime = Date.now();
     
     // Use configured image model or fallback to DALL-E 3
-    const imageModel = config.imageModel || 'openai/dall-e-3';
+    let imageModel = config.imageModel || 'openai/dall-e-3';
+    
+    // Validate and correct invalid model names
+    if (imageModel.includes('gemini')) {
+      console.warn(`[OpenRouter Service] Invalid model "${imageModel}" for OpenRouter. Gemini models are not available through OpenRouter. Falling back to openai/dall-e-3`);
+      imageModel = 'openai/dall-e-3';
+    }
     
     console.log(`[OpenRouter Service] Starting image generation - Type: ${type}, Model: ${imageModel}`);
     
