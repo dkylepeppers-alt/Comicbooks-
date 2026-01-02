@@ -6,6 +6,7 @@
 import React from 'react';
 import { useBook } from '../context/BookContext';
 import { useSettings } from '../context/SettingsContext';
+import { useNetworkStatus } from '../hooks/useNetworkStatus';
 
 const StatusChip: React.FC<{ label: string; tone?: 'info' | 'warn' | 'success' }>
   = ({ label, tone = 'info' }) => {

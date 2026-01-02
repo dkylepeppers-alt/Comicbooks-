@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import OpenAI from '@openrouter/sdk';
+import { OpenRouter } from '@openrouter/sdk';
 import {
   Beat,
   Persona,
@@ -62,9 +62,8 @@ const getOpenRouterClient = (apiKey?: string) => {
   }
   
   console.log("[OpenRouter Service] API initialized successfully");
-  return new OpenAI({
+  return new OpenRouter({
     apiKey: key,
-    baseURL: 'https://openrouter.ai/api/v1',
   });
 };
 
