@@ -180,7 +180,11 @@ export const OpenRouterService = {
         try {
           const imageBase64 = await fetchAndConvertToBase64(imageUrl);
           // Extract just the base64 data without the data URL prefix for consistency with Gemini
-          const base64Data = imageBase64.split(',')[1] || '';
+          const parts = imageBase64.split(',');
+          if (parts.length < 2) {
+            throw new Error('Invalid base64 data URL format - missing comma separator');
+          }
+          const base64Data = parts[1];
           
           console.log(`[OpenRouter Service] Persona image converted to base64 successfully`);
           return { 
@@ -196,7 +200,12 @@ export const OpenRouterService = {
       
       // If no URL found, check if response contains base64 data
       if (content.includes('data:image')) {
-        const base64Data = content.split(',')[1] || content;
+        const parts = content.split(',');
+        if (parts.length < 2) {
+          console.error(`[OpenRouter Service] Invalid base64 data format in response`);
+          throw new Error('Invalid base64 data format in response');
+        }
+        const base64Data = parts[1];
         console.log(`[OpenRouter Service] Base64 persona image data found in response`);
         return { 
           base64: base64Data, 
