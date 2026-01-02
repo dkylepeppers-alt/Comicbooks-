@@ -8,6 +8,7 @@ import { useBook } from '../context/BookContext';
 import { useModelPresets } from '../context/ModelPresetContext';
 import { useSettings } from '../context/SettingsContext';
 import { GoogleGenAI } from '@google/genai';
+import { OpenRouter } from '@openrouter/sdk';
 
 const Section: React.FC<{ title: string; children: React.ReactNode; description?: string }>
   = ({ title, children, description }) => (
@@ -57,6 +58,10 @@ export const SettingsPanel: React.FC = () => {
   const [openRouterKeyInput, setOpenRouterKeyInput] = React.useState('');
   const [isTestingOpenRouterKey, setIsTestingOpenRouterKey] = React.useState(false);
   const [openRouterTestResult, setOpenRouterTestResult] = React.useState<{ type: 'success' | 'error', message: string } | null>(null);
+  
+  // OpenRouter models state
+  const [openRouterModels, setOpenRouterModels] = React.useState<Array<{ id: string; name: string }>>([]);
+  const [isLoadingModels, setIsLoadingModels] = React.useState(false);
 
   React.useEffect(() => {
     const preset = getPresetById(state.config.modelPresetId) || presets[0];
@@ -79,6 +84,41 @@ export const SettingsPanel: React.FC = () => {
       setOpenRouterKeyInput(storedOpenRouterKey);
     }
   }, []);
+
+  // Fetch OpenRouter models when provider is OpenRouter
+  React.useEffect(() => {
+    const fetchOpenRouterModels = async () => {
+      if (state.config.aiProvider !== 'openrouter') {
+        return;
+      }
+
+      const apiKey = openRouterKeyInput.trim() || (typeof localStorage !== 'undefined' ? localStorage.getItem('openrouterApiKey') : null);
+      if (!apiKey) {
+        return;
+      }
+
+      setIsLoadingModels(true);
+      try {
+        const client = new OpenRouter({ apiKey });
+        const response = await client.models.list({});
+        
+        if (response.data && Array.isArray(response.data)) {
+          const models = response.data.map((model: any) => ({
+            id: model.id || '',
+            name: model.name || model.id || ''
+          })).filter((m: any) => m.id);
+          
+          setOpenRouterModels(models);
+        }
+      } catch (error) {
+        console.error('Failed to fetch OpenRouter models:', error);
+      } finally {
+        setIsLoadingModels(false);
+      }
+    };
+
+    fetchOpenRouterModels();
+  }, [state.config.aiProvider, openRouterKeyInput]);
 
   const handlePresetChange = (id: string) => {
     const preset = getPresetById(id) || presets.find(p => p.id === id);
@@ -254,29 +294,68 @@ export const SettingsPanel: React.FC = () => {
               <div className="grid grid-cols-1 gap-2 sm:gap-3">
                 <div>
                   <FieldLabel label="Text Generation Model" hint="Model for narrative/dialogue" />
-                  <input
-                    type="text"
-                    value={state.config.textModel}
-                    onChange={e => actions.updateConfig({ textModel: e.target.value })}
-                    className="w-full border border-gray-300 rounded-md px-2 py-2.5 sm:py-2 touch-manipulation min-h-[44px] sm:min-h-0"
-                    placeholder={state.config.aiProvider === 'gemini' ? 'gemini-3-flash-preview' : 'openai/gpt-4-turbo-preview'}
-                  />
+                  {state.config.aiProvider === 'openrouter' && openRouterModels.length > 0 ? (
+                    <select
+                      value={state.config.textModel}
+                      onChange={e => actions.updateConfig({ textModel: e.target.value })}
+                      className="w-full border border-gray-300 rounded-md px-2 py-2.5 sm:py-2 touch-manipulation min-h-[44px] sm:min-h-0"
+                      disabled={isLoadingModels}
+                    >
+                      <option value="">Select a model...</option>
+                      {openRouterModels.map(model => (
+                        <option key={model.id} value={model.id}>
+                          {model.name}
+                        </option>
+                      ))}
+                    </select>
+                  ) : (
+                    <input
+                      type="text"
+                      value={state.config.textModel}
+                      onChange={e => actions.updateConfig({ textModel: e.target.value })}
+                      className="w-full border border-gray-300 rounded-md px-2 py-2.5 sm:py-2 touch-manipulation min-h-[44px] sm:min-h-0"
+                      placeholder={state.config.aiProvider === 'gemini' ? 'gemini-3-flash-preview' : 'openai/gpt-4-turbo-preview'}
+                    />
+                  )}
+                  {state.config.aiProvider === 'openrouter' && isLoadingModels && (
+                    <p className="text-xs text-gray-600 mt-1">Loading models...</p>
+                  )}
                 </div>
                 <div>
                   <FieldLabel label="Image Generation Model" hint="Model for visuals" />
-                  <input
-                    type="text"
-                    value={state.config.imageModel}
-                    onChange={e => actions.updateConfig({ imageModel: e.target.value })}
-                    className="w-full border border-gray-300 rounded-md px-2 py-2.5 sm:py-2 touch-manipulation min-h-[44px] sm:min-h-0"
-                    placeholder={state.config.aiProvider === 'gemini' ? 'gemini-3-pro-image-preview' : 'openai/dall-e-3'}
-                  />
+                  {state.config.aiProvider === 'openrouter' && openRouterModels.length > 0 ? (
+                    <select
+                      value={state.config.imageModel}
+                      onChange={e => actions.updateConfig({ imageModel: e.target.value })}
+                      className="w-full border border-gray-300 rounded-md px-2 py-2.5 sm:py-2 touch-manipulation min-h-[44px] sm:min-h-0"
+                      disabled={isLoadingModels}
+                    >
+                      <option value="">Select a model...</option>
+                      {openRouterModels.map(model => (
+                        <option key={model.id} value={model.id}>
+                          {model.name}
+                        </option>
+                      ))}
+                    </select>
+                  ) : (
+                    <input
+                      type="text"
+                      value={state.config.imageModel}
+                      onChange={e => actions.updateConfig({ imageModel: e.target.value })}
+                      className="w-full border border-gray-300 rounded-md px-2 py-2.5 sm:py-2 touch-manipulation min-h-[44px] sm:min-h-0"
+                      placeholder={state.config.aiProvider === 'gemini' ? 'gemini-3-pro-image-preview' : 'openai/dall-e-3'}
+                    />
+                  )}
+                  {state.config.aiProvider === 'openrouter' && isLoadingModels && (
+                    <p className="text-xs text-gray-600 mt-1">Loading models...</p>
+                  )}
                 </div>
               </div>
               {state.config.aiProvider === 'openrouter' && (
                 <div className="bg-blue-50 border border-blue-300 rounded p-3">
                   <p className="text-xs text-blue-800 leading-relaxed">
-                    <strong>Note:</strong> OpenRouter requires its own API key. Get one from{' '}
+                    <strong>Note:</strong> {openRouterModels.length === 0 && !isLoadingModels ? 'Save your OpenRouter API key below to load available models. ' : ''}
+                    OpenRouter requires its own API key. Get one from{' '}
                     <a 
                       href="https://openrouter.ai/keys" 
                       target="_blank" 
