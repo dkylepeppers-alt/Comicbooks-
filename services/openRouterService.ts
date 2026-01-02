@@ -123,7 +123,7 @@ export const OpenRouterService = {
         throw timeoutSignal.reason || new Error('Operation aborted');
       }
 
-      console.log(`[OpenRouter Service] Calling OpenRouter API - Model: ${model}, Timeout: ${TIMEOUT_CONFIG.PERSONA_GENERATION}ms`);
+      console.log(`[OpenRouter Service] Calling OpenRouter API for character image - Model: ${model}, Timeout: ${TIMEOUT_CONFIG.PERSONA_GENERATION}ms`);
       
       const prompt = `STYLE: Masterpiece ${style} character sheet, detailed ink, neutral background. FULL BODY. Character: ${desc}`;
       
@@ -140,18 +140,60 @@ export const OpenRouterService = {
       const elapsed = Date.now() - startTime;
       console.log(`[OpenRouter Service] Persona generation completed in ${elapsed}ms`);
 
-      // Note: OpenRouter doesn't support image generation directly in the same way as Gemini
-      // For now, we'll return a placeholder. This would need to be integrated with an image generation model
       const content = response.choices?.[0]?.message?.content || '';
-      console.log(`[OpenRouter Service] Persona text generated successfully`);
       
-      // For OpenRouter, we need to handle image generation differently
-      // This is a placeholder - actual implementation would depend on the specific model's capabilities
-      return { 
-        base64: '', 
-        name: "Sidekick", 
-        description: desc 
-      };
+      // Check if the model returned an image URL
+      const urlMatch = content.match(/https?:\/\/[^\s]+/);
+      if (urlMatch) {
+        const imageUrl = urlMatch[0];
+        console.log(`[OpenRouter Service] Image URL received for persona, fetching and converting to base64...`);
+        
+        // Fetch the image and convert to base64
+        try {
+          const imageResponse = await fetch(imageUrl);
+          if (!imageResponse.ok) {
+            throw new Error(`Failed to fetch image: ${imageResponse.status} ${imageResponse.statusText}`);
+          }
+          
+          const imageBlob = await imageResponse.blob();
+          const imageBase64 = await new Promise<string>((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onloadend = () => {
+              const result = reader.result as string;
+              // Extract just the base64 data without the data URL prefix for consistency
+              const base64Data = (reader.result as string).split(',')[1] || '';
+              resolve(base64Data);
+            };
+            reader.onerror = reject;
+            reader.readAsDataURL(imageBlob);
+          });
+          
+          console.log(`[OpenRouter Service] Persona image converted to base64 successfully`);
+          return { 
+            base64: imageBase64, 
+            name: "Sidekick", 
+            description: desc 
+          };
+        } catch (fetchError) {
+          console.error(`[OpenRouter Service] Failed to fetch/convert persona image:`, fetchError);
+          throw fetchError;
+        }
+      }
+      
+      // If no URL found, check if response contains base64 data
+      if (content.includes('data:image')) {
+        const base64Data = content.split(',')[1] || content;
+        console.log(`[OpenRouter Service] Base64 persona image data found in response`);
+        return { 
+          base64: base64Data, 
+          name: "Sidekick", 
+          description: desc 
+        };
+      }
+      
+      // No image data found - throw error
+      console.error(`[OpenRouter Service] No image data found in persona response`);
+      throw new Error(`Image generation model ${model} did not return valid image data for persona. Response: ${content.substring(0, 100)}`);
     } catch (error) {
       const elapsed = Date.now() - startTime;
       console.error(`[OpenRouter Service] Persona generation failed after ${elapsed}ms`, error);
@@ -368,12 +410,125 @@ OUTPUT STRICT JSON ONLY (No markdown formatting):
   ): Promise<string> {
     const startTime = Date.now();
     
-    console.log(`[OpenRouter Service] Image generation requested but not directly supported`);
-    console.log(`[OpenRouter Service] Returning placeholder for now - actual implementation depends on model capabilities`);
+    // Use configured image model or fallback to DALL-E 3
+    const imageModel = config.imageModel || 'openai/dall-e-3';
     
-    // OpenRouter doesn't provide direct image generation in the same way as Gemini
-    // This would need to be implemented using specific image generation models
-    // For now, return an empty string to indicate no image
-    return '';
+    console.log(`[OpenRouter Service] Starting image generation - Type: ${type}, Model: ${imageModel}`);
+    
+    const client = getOpenRouterClient();
+
+    const { signal: timeoutSignal, cleanup } = createTimeoutSignal(
+      TIMEOUT_CONFIG.IMAGE_GENERATION,
+      signal
+    );
+
+    try {
+      if (timeoutSignal.aborted) {
+        console.warn("[OpenRouter Service] Image generation aborted before API call");
+        throw timeoutSignal.reason || new Error('Operation aborted');
+      }
+
+      // Build the image generation prompt
+      const styleEra = config.genre === 'Custom' ? "Modern American" : config.genre;
+      let promptText = `${styleEra} comic book art, detailed ink, vibrant colors. `;
+      
+      if (type === 'cover') {
+        promptText += `Comic book cover with dynamic action shot. Title "INFINITE HEROES" at top. Epic superhero composition.`;
+        if (hero.description) {
+          promptText += ` Main character: ${hero.description}.`;
+        }
+        if (world) {
+          promptText += ` Setting: ${world.name} - ${world.description}.`;
+        }
+      } else if (type === 'back_cover') {
+        promptText += `Comic book back cover. Full page vertical art. Dramatic teaser image. Text "NEXT ISSUE SOON".`;
+      } else {
+        // Story panel
+        promptText += `Vertical comic panel. ${beat.scene}.`;
+        if (hero.description) {
+          promptText += ` Main character: ${hero.description}.`;
+        }
+        if (friend?.description) {
+          promptText += ` Supporting character: ${friend.description}.`;
+        }
+        if (world) {
+          promptText += ` Setting: ${world.name}.`;
+        }
+        if (beat.caption) {
+          promptText += ` Include caption: "${beat.caption}".`;
+        }
+        if (beat.dialogue) {
+          promptText += ` Include speech: "${beat.dialogue}".`;
+        }
+      }
+
+      console.log(`[OpenRouter Service] Calling OpenRouter API for image - Model: ${imageModel}, Timeout: ${TIMEOUT_CONFIG.IMAGE_GENERATION}ms`);
+      
+      // Call OpenRouter with the image generation model
+      const response = await client.chat.completions.create({
+        model: imageModel,
+        messages: [
+          {
+            role: 'user',
+            content: promptText,
+          },
+        ],
+      });
+
+      const elapsed = Date.now() - startTime;
+      console.log(`[OpenRouter Service] Image generation API call completed in ${elapsed}ms`);
+
+      // Extract image URL or base64 from response
+      const content = response.choices?.[0]?.message?.content || '';
+      
+      // Check if the model returned an image URL
+      const urlMatch = content.match(/https?:\/\/[^\s]+/);
+      if (urlMatch) {
+        const imageUrl = urlMatch[0];
+        console.log(`[OpenRouter Service] Image URL received, fetching and converting to base64...`);
+        
+        // Fetch the image and convert to base64
+        try {
+          const imageResponse = await fetch(imageUrl);
+          if (!imageResponse.ok) {
+            throw new Error(`Failed to fetch image: ${imageResponse.status} ${imageResponse.statusText}`);
+          }
+          
+          const imageBlob = await imageResponse.blob();
+          const imageBase64 = await new Promise<string>((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onloadend = () => {
+              const result = reader.result as string;
+              resolve(result);
+            };
+            reader.onerror = reject;
+            reader.readAsDataURL(imageBlob);
+          });
+          
+          console.log(`[OpenRouter Service] Image converted to base64 successfully`);
+          return imageBase64;
+        } catch (fetchError) {
+          console.error(`[OpenRouter Service] Failed to fetch/convert image:`, fetchError);
+          throw fetchError;
+        }
+      }
+      
+      // If no URL found, check if response contains base64 data
+      if (content.includes('data:image')) {
+        console.log(`[OpenRouter Service] Base64 image data found in response`);
+        return content;
+      }
+      
+      // No image data found
+      console.error(`[OpenRouter Service] No image data found in response`);
+      throw new Error(`Image generation model ${imageModel} did not return valid image data. Response: ${content.substring(0, 100)}`);
+      
+    } catch (error) {
+      const elapsed = Date.now() - startTime;
+      console.error(`[OpenRouter Service] Image generation failed after ${elapsed}ms`, error);
+      throw error;
+    } finally {
+      cleanup();
+    }
   }
 };
