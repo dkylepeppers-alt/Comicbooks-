@@ -48,6 +48,47 @@ const setCachedBeat = (key: string, beat: Beat): void => {
 };
 
 /**
+ * Validates and sanitizes a URL from AI model response
+ * @param content The content that may contain a URL
+ * @returns The validated URL or null if invalid
+ */
+const extractAndValidateUrl = (content: string): string | null => {
+  // More specific regex that avoids trailing punctuation
+  const urlMatch = content.match(/https?:\/\/[^\s"'<>]+/);
+  if (!urlMatch) return null;
+  
+  // Remove common trailing punctuation
+  const rawUrl = urlMatch[0].replace(/[.,;:!?)}\]]+$/u, '');
+  
+  try {
+    const validated = new URL(rawUrl);
+    // Only allow https URLs from trusted domains for security
+    if (validated.protocol !== 'https:') {
+      console.warn(`[OpenRouter Service] Rejecting non-HTTPS URL: ${rawUrl}`);
+      return null;
+    }
+    return validated.toString();
+  } catch {
+    console.warn(`[OpenRouter Service] Invalid URL format: ${rawUrl}`);
+    return null;
+  }
+};
+
+/**
+ * Extracts base64 data from a data URL
+ * @param content The data URL or content containing base64
+ * @returns The extracted base64 data (without data URL prefix)
+ * @throws Error if the format is invalid
+ */
+const extractBase64FromDataUrl = (content: string): string => {
+  const parts = content.split(',');
+  if (parts.length < 2) {
+    throw new Error('Invalid base64 data URL format - missing comma separator');
+  }
+  return parts[1];
+};
+
+/**
  * Fetches an image from a URL and converts it to a base64 data URL
  * @param imageUrl The URL of the image to fetch
  * @returns Promise<string> The base64 data URL (e.g., "data:image/png;base64,...")
@@ -58,13 +99,25 @@ const fetchAndConvertToBase64 = async (imageUrl: string): Promise<string> => {
     throw new Error(`Failed to fetch image: ${imageResponse.status} ${imageResponse.statusText}`);
   }
   
+  // Check content length to prevent DoS
+  const contentLength = imageResponse.headers.get('content-length');
+  if (contentLength && parseInt(contentLength) > 10 * 1024 * 1024) { // 10MB limit
+    throw new Error(`Image too large: ${contentLength} bytes (max 10MB)`);
+  }
+  
   const imageBlob = await imageResponse.blob();
   return new Promise<string>((resolve, reject) => {
     const reader = new FileReader();
     reader.onloadend = () => {
       resolve(reader.result as string);
     };
-    reader.onerror = reject;
+    reader.onerror = () => {
+      reject(
+        new Error(
+          `Failed to read image as base64: ${reader.error?.message || 'Unknown error'}`
+        )
+      );
+    };
     reader.readAsDataURL(imageBlob);
   });
 };
@@ -177,19 +230,14 @@ export const OpenRouterService = {
       const content = response.choices?.[0]?.message?.content || '';
       
       // Check if the model returned an image URL
-      const urlMatch = content.match(/https?:\/\/[^\s]+/);
-      if (urlMatch) {
-        const imageUrl = urlMatch[0];
+      const imageUrl = extractAndValidateUrl(content);
+      if (imageUrl) {
         console.log(`[OpenRouter Service] Image URL received for persona, fetching and converting to base64...`);
         
         try {
           const imageBase64 = await fetchAndConvertToBase64(imageUrl);
           // Extract just the base64 data without the data URL prefix for consistency with Gemini
-          const parts = imageBase64.split(',');
-          if (parts.length < 2) {
-            throw new Error('Invalid base64 data URL format - missing comma separator');
-          }
-          const base64Data = parts[1];
+          const base64Data = extractBase64FromDataUrl(imageBase64);
           
           console.log(`[OpenRouter Service] Persona image converted to base64 successfully`);
           return { 
@@ -205,18 +253,18 @@ export const OpenRouterService = {
       
       // If no URL found, check if response contains base64 data
       if (content.includes('data:image')) {
-        const parts = content.split(',');
-        if (parts.length < 2) {
+        try {
+          const base64Data = extractBase64FromDataUrl(content);
+          console.log(`[OpenRouter Service] Base64 persona image data found in response`);
+          return { 
+            base64: base64Data, 
+            name: "Sidekick", 
+            description: desc 
+          };
+        } catch (error) {
           console.error(`[OpenRouter Service] Invalid base64 data format in response`);
-          throw new Error('Invalid base64 data format in response');
+          throw error;
         }
-        const base64Data = parts[1];
-        console.log(`[OpenRouter Service] Base64 persona image data found in response`);
-        return { 
-          base64: base64Data, 
-          name: "Sidekick", 
-          description: desc 
-        };
       }
       
       // No image data found - throw error
@@ -517,15 +565,14 @@ OUTPUT STRICT JSON ONLY (No markdown formatting):
       const content = response.choices?.[0]?.message?.content || '';
       
       // Check if the model returned an image URL
-      const urlMatch = content.match(/https?:\/\/[^\s]+/);
-      if (urlMatch) {
-        const imageUrl = urlMatch[0];
+      const imageUrl = extractAndValidateUrl(content);
+      if (imageUrl) {
         console.log(`[OpenRouter Service] Image URL received, fetching and converting to base64...`);
         
         try {
           const imageBase64 = await fetchAndConvertToBase64(imageUrl);
           console.log(`[OpenRouter Service] Image converted to base64 successfully`);
-          return imageBase64;
+          return imageBase64; // Return full data URL for consistency
         } catch (fetchError) {
           console.error(`[OpenRouter Service] Failed to fetch/convert image:`, fetchError);
           throw fetchError;
@@ -535,7 +582,7 @@ OUTPUT STRICT JSON ONLY (No markdown formatting):
       // If no URL found, check if response contains base64 data
       if (content.includes('data:image')) {
         console.log(`[OpenRouter Service] Base64 image data found in response`);
-        return content;
+        return content; // Already a data URL
       }
       
       // No image data found

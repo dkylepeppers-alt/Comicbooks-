@@ -91,16 +91,21 @@ export const SettingsPanel: React.FC = () => {
 
   // Capture console logs
   React.useEffect(() => {
+    let isMounted = true;
     const originalConsoleLog = console.log;
     const originalConsoleError = console.error;
     const originalConsoleWarn = console.warn;
 
     const captureLog = (type: string, args: any[]) => {
+      if (!isMounted) return; // Prevent state updates after unmount
+      
       const timestamp = new Date().toISOString();
       const message = args.map(arg => {
         if (typeof arg === 'object') {
           try {
-            return JSON.stringify(arg, null, 2);
+            // Limit JSON.stringify to prevent performance issues with large objects
+            const str = JSON.stringify(arg, null, 2);
+            return str.length > 1000 ? str.substring(0, 1000) + '... (truncated)' : str;
           } catch {
             return String(arg);
           }
@@ -127,6 +132,7 @@ export const SettingsPanel: React.FC = () => {
     };
 
     return () => {
+      isMounted = false;
       console.log = originalConsoleLog;
       console.error = originalConsoleError;
       console.warn = originalConsoleWarn;
@@ -312,15 +318,19 @@ export const SettingsPanel: React.FC = () => {
     const logContent = consoleLogs.map(log => `[${log.timestamp}] [${log.type.toUpperCase()}] ${log.message}`).join('\n');
     const blob = new Blob([logContent], { type: 'text/plain' });
     const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `infinite-heroes-logs-${new Date().toISOString().replace(/:/g, '-')}.txt`;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
-    console.log(`[Settings Panel] Downloaded ${consoleLogs.length} console logs`);
-    actions.addNotification('success', `Downloaded ${consoleLogs.length} console logs`, 3000);
+    
+    try {
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `infinite-heroes-logs-${new Date().toISOString().replace(/:/g, '-')}.txt`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      console.log(`[Settings Panel] Downloaded ${consoleLogs.length} console logs`);
+      actions.addNotification('success', `Downloaded ${consoleLogs.length} console logs`, 3000);
+    } finally {
+      URL.revokeObjectURL(url);
+    }
   };
 
   const handleClearLogs = () => {
