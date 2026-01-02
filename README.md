@@ -1,7 +1,3 @@
-<div align="center">
-<img width="1200" height="475" alt="GHBanner" src="https://github.com/user-attachments/assets/0aa67016-6eaf-458a-adb2-6e31a0763ed6" />
-</div>
-
 # Infinite Heroes - AI Comic Book Generator
 
 Create personalized, infinite comic books with AI-generated stories and artwork. Build your heroes, design worlds, and experience dynamic narratives that adapt to your choices.
@@ -27,7 +23,7 @@ Create personalized, infinite comic books with AI-generated stories and artwork.
 
 - **Node.js** (v14 or higher recommended, tested with v20.19.6)
 - **npm** (v6 or higher, tested with v10.8.2)
-- **Google Gemini API Key** - Get one free at [Google AI Studio](https://aistudio.google.com/app/apikey)
+- **Google Gemini API Key** - Get one free from the [Gemini API page](https://ai.google.dev/gemini-api/docs/api-key)
 - **OpenRouter API Key** (Optional) - Get one at [OpenRouter](https://openrouter.ai/keys) if you want to use OpenRouter models
 
 ### Installation
@@ -220,7 +216,7 @@ Customize your comic generation:
 
 **Problem**: "API_KEY_INVALID" error
 **Solution**: 
-1. Get a valid API key from [Google AI Studio](https://aistudio.google.com/app/apikey)
+1. Get a valid API key from the [Gemini API page](https://ai.google.dev/gemini-api/docs/api-key)
 2. Copy `.env.local.example` to `.env.local`
 3. Set `VITE_GEMINI_API_KEY=your_key` in `.env.local`
 4. Restart the dev server
@@ -276,7 +272,6 @@ Contributions welcome! Please:
 ## 📚 Additional Documentation
 
 - [TERMUX_SETUP.md](TERMUX_SETUP.md) - Complete Android/Termux installation guide
-- [docs/UI_UX_Upgrade_Plan.md](docs/UI_UX_Upgrade_Plan.md) - Future UI enhancement roadmap
 - [docs/PERFORMANCE_OPTIMIZATIONS.md](docs/PERFORMANCE_OPTIMIZATIONS.md) - Performance optimization details
 
 ## 🔗 Links
@@ -284,7 +279,7 @@ Contributions welcome! Please:
 - **GitHub Repository**: https://github.com/dkylepeppers-alt/Comicbooks-
 - **Google Gemini API**: https://ai.google.dev/
 - **OpenRouter**: https://openrouter.ai/
-- **Get Gemini API Key**: https://aistudio.google.com/app/apikey
+- **Get Gemini API Key**: https://ai.google.dev/gemini-api/docs/api-key
 
 ---
 
