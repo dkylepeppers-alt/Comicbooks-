@@ -62,6 +62,10 @@ export const SettingsPanel: React.FC = () => {
   // OpenRouter models state
   const [openRouterModels, setOpenRouterModels] = React.useState<Array<{ id: string; name: string }>>([]);
   const [isLoadingModels, setIsLoadingModels] = React.useState(false);
+  
+  // Console log state
+  const [consoleLogs, setConsoleLogs] = React.useState<Array<{ timestamp: string; type: string; message: string }>>([]);
+  const [showConsole, setShowConsole] = React.useState(false);
 
   React.useEffect(() => {
     const preset = getPresetById(state.config.modelPresetId) || presets[0];
@@ -85,19 +89,68 @@ export const SettingsPanel: React.FC = () => {
     }
   }, []);
 
+  // Capture console logs
+  React.useEffect(() => {
+    const originalConsoleLog = console.log;
+    const originalConsoleError = console.error;
+    const originalConsoleWarn = console.warn;
+
+    const captureLog = (type: string, args: any[]) => {
+      const timestamp = new Date().toISOString();
+      const message = args.map(arg => {
+        if (typeof arg === 'object') {
+          try {
+            return JSON.stringify(arg, null, 2);
+          } catch {
+            return String(arg);
+          }
+        }
+        return String(arg);
+      }).join(' ');
+      
+      setConsoleLogs(prev => [...prev.slice(-99), { timestamp, type, message }]); // Keep last 100 logs
+    };
+
+    console.log = (...args) => {
+      captureLog('log', args);
+      originalConsoleLog.apply(console, args);
+    };
+
+    console.error = (...args) => {
+      captureLog('error', args);
+      originalConsoleError.apply(console, args);
+    };
+
+    console.warn = (...args) => {
+      captureLog('warn', args);
+      originalConsoleWarn.apply(console, args);
+    };
+
+    return () => {
+      console.log = originalConsoleLog;
+      console.error = originalConsoleError;
+      console.warn = originalConsoleWarn;
+    };
+  }, []);
+
   // Fetch OpenRouter models when provider is OpenRouter
   React.useEffect(() => {
     const fetchOpenRouterModels = async () => {
       if (state.config.aiProvider !== 'openrouter') {
+        // Clear models when switching away from OpenRouter
+        setOpenRouterModels([]);
+        console.log('[Settings Panel] Switched to Gemini provider, clearing OpenRouter models');
         return;
       }
 
       const apiKey = openRouterKeyInput.trim() || (typeof localStorage !== 'undefined' ? localStorage.getItem('openrouterApiKey') : null);
       if (!apiKey) {
+        console.log('[Settings Panel] No OpenRouter API key found, skipping model fetch');
         return;
       }
 
       setIsLoadingModels(true);
+      console.log('[Settings Panel] Fetching OpenRouter models...');
       try {
         const client = new OpenRouter({
           apiKey,
@@ -112,12 +165,15 @@ export const SettingsPanel: React.FC = () => {
           const models = response.data.map((model: any) => ({
             id: model.id || '',
             name: model.name || model.id || ''
-          })).filter((m: any) => m.id);
+          }))
+            .filter((m: any) => m.id)
+            .sort((a, b) => a.name.localeCompare(b.name)); // Sort alphabetically by name
           
           setOpenRouterModels(models);
+          console.log(`[Settings Panel] Loaded ${models.length} OpenRouter models (sorted alphabetically)`);
         }
       } catch (error) {
-        console.error('Failed to fetch OpenRouter models:', error);
+        console.error('[Settings Panel] Failed to fetch OpenRouter models:', error);
       } finally {
         setIsLoadingModels(false);
       }
@@ -250,6 +306,26 @@ export const SettingsPanel: React.FC = () => {
       setOpenRouterTestResult({ type: 'success', message: '✓ OpenRouter API key saved for this browser.' });
       actions.addNotification('success', 'OpenRouter API key saved successfully!', 3000);
     }
+  };
+
+  const handleDownloadLogs = () => {
+    const logContent = consoleLogs.map(log => `[${log.timestamp}] [${log.type.toUpperCase()}] ${log.message}`).join('\n');
+    const blob = new Blob([logContent], { type: 'text/plain' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `infinite-heroes-logs-${new Date().toISOString().replace(/:/g, '-')}.txt`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    console.log(`[Settings Panel] Downloaded ${consoleLogs.length} console logs`);
+    actions.addNotification('success', `Downloaded ${consoleLogs.length} console logs`, 3000);
+  };
+
+  const handleClearLogs = () => {
+    setConsoleLogs([]);
+    console.log('[Settings Panel] Cleared console logs');
   };
 
   if (!isPanelOpen) return null;
@@ -745,6 +821,52 @@ export const SettingsPanel: React.FC = () => {
                 />
                 Sticky toasts
               </label>
+            </div>
+          </Section>
+
+          <Section title="Developer Console" description="View and download application logs for debugging">
+            <div className="space-y-3">
+              <div className="flex items-center gap-2">
+                <button
+                  className="comic-btn bg-blue-500 text-white text-xs sm:text-sm px-3 py-2.5 sm:py-2 hover:bg-blue-400 touch-manipulation min-h-[44px] sm:min-h-0"
+                  onClick={() => setShowConsole(!showConsole)}
+                >
+                  {showConsole ? '📋 Hide Console' : '📋 Show Console'} ({consoleLogs.length})
+                </button>
+                <button
+                  className="comic-btn bg-green-500 text-white text-xs sm:text-sm px-3 py-2.5 sm:py-2 hover:bg-green-400 touch-manipulation min-h-[44px] sm:min-h-0"
+                  onClick={handleDownloadLogs}
+                  disabled={consoleLogs.length === 0}
+                >
+                  ⬇️ Download Logs
+                </button>
+                <button
+                  className="comic-btn bg-red-500 text-white text-xs sm:text-sm px-3 py-2.5 sm:py-2 hover:bg-red-400 touch-manipulation min-h-[44px] sm:min-h-0"
+                  onClick={handleClearLogs}
+                  disabled={consoleLogs.length === 0}
+                >
+                  🗑️ Clear
+                </button>
+              </div>
+              {showConsole && (
+                <div className="bg-gray-900 text-green-400 rounded-md p-3 max-h-96 overflow-y-auto font-mono text-xs">
+                  {consoleLogs.length === 0 ? (
+                    <div className="text-gray-500 text-center py-4">No logs captured yet</div>
+                  ) : (
+                    consoleLogs.map((log, idx) => (
+                      <div
+                        key={idx}
+                        className={`py-1 ${
+                          log.type === 'error' ? 'text-red-400' : log.type === 'warn' ? 'text-yellow-400' : 'text-green-400'
+                        }`}
+                      >
+                        <span className="text-gray-500">[{new Date(log.timestamp).toLocaleTimeString()}]</span>{' '}
+                        <span className="text-blue-400">[{log.type.toUpperCase()}]</span> {log.message}
+                      </div>
+                    ))
+                  )}
+                </div>
+              )}
             </div>
           </Section>
 
