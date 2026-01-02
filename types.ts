@@ -85,6 +85,15 @@ export interface ComicFace {
 
 export type AIProvider = 'gemini' | 'openrouter';
 
+export interface ModelParameters {
+  temperature?: number;
+  topP?: number;
+  maxTokens?: number;
+  frequencyPenalty?: number;
+  presencePenalty?: number;
+  topK?: number;
+}
+
 export interface StoryConfig {
   genre: string;
   tone: string;
@@ -99,13 +108,27 @@ export interface StoryConfig {
   aiProvider: AIProvider;
   textModel: string;  // Model for text generation
   imageModel: string; // Model for image generation
+  // Model parameters
+  textModelParams: ModelParameters;
+  imageModelParams: ModelParameters;
+  // Separate prompts for text and image
+  textPrompt: string;
+  imagePrompt: string;
 }
 
 export interface ModelPreset {
   id: string;
   name: string;
-  model: string;
-  prompt: string;
+  provider: AIProvider;
+  textModel: string;
+  imageModel: string;
+  textPrompt: string;
+  imagePrompt: string;
+  textModelParams: ModelParameters;
+  imageModelParams: ModelParameters;
+  // Legacy fields for backward compatibility
+  model?: string;
+  prompt?: string;
   isDefault?: boolean;
   updatedAt: number;
 }
