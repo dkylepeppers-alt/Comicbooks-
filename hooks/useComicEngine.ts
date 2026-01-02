@@ -181,6 +181,21 @@ export const useComicEngine = () => {
     };
   }, [abortAllOperations, clearAllTimeouts]);
 
+  // Auto-load worlds on mount for offline capabilities
+  React.useEffect(() => {
+    const loadInitialWorlds = async () => {
+      try {
+        const worlds = await StorageService.getWorlds();
+        dispatch({ type: 'LOAD_WORLDS', payload: worlds });
+        console.log(`[Comic Engine] Auto-loaded ${worlds.length} worlds from storage`);
+      } catch (error) {
+        console.warn('[Comic Engine] Failed to auto-load worlds:', error);
+      }
+    };
+    
+    loadInitialWorlds();
+  }, []);
+
   // Actions
   const setHero = useCallback((p: Persona | null) => dispatch({ type: 'SET_HERO', payload: p }), []);
   const updateHero = useCallback((updates: Partial<Persona>) => dispatch({ type: 'UPDATE_HERO', payload: updates }), []);
