@@ -6,7 +6,6 @@
 
 import React, { Suspense, lazy } from 'react';
 import { ErrorBoundary } from './components/ErrorBoundary';
-import { GlobalLoadingIndicator } from './components/GlobalLoadingIndicator';
 import { NotificationToast } from './components/NotificationToast';
 import { SettingsPanel } from './components/SettingsPanel';
 import { TopBar } from './components/TopBar';
@@ -121,8 +120,6 @@ const AppContent: React.FC = () => {
               onLaunch={actions.launchStory}
           />
         </Suspense>
-
-        <GlobalLoadingIndicator />
 
         <Suspense fallback={<div className="w-full h-full flex items-center justify-center"><div className="animate-spin text-4xl">📖</div></div>}>
           <Book />

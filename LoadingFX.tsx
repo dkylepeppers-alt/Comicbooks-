@@ -9,17 +9,26 @@ import { useBook } from './context/BookContext';
 
 const LOADING_FX = ["POW!", "BAM!", "ZAP!", "KRAK!", "SKREEE!", "WHOOSH!", "THWIP!", "BOOM!"];
 
+interface LogEntry {
+  timestamp: number;
+  message: string;
+  type: 'info' | 'success' | 'error' | 'warning';
+}
+
 export const LoadingFX: React.FC = () => {
     const { state, actions } = useBook();
     const [particles, setParticles] = useState<{id: number, text: string, x: string, y: string, rot: number, color: string}[]>([]);
     const [elapsedTime, setElapsedTime] = useState(0);
     const [isCollapsed, setIsCollapsed] = useState(false);
+    const [showDetailedLogs, setShowDetailedLogs] = useState(false);
+    const [apiLogs, setApiLogs] = useState<LogEntry[]>([]);
     const [position, setPosition] = useState({ x: 18, y: 18 });
     const dragOffsetRef = useRef({ x: 0, y: 0 });
     const dragCaptureRef = useRef<HTMLElement | null>(null);
     const isDraggingRef = useRef(false);
     const shellRef = useRef<HTMLDivElement>(null);
     const cardRef = useRef<HTMLDivElement>(null);
+    const logContainerRef = useRef<HTMLDivElement>(null);
 
     // Progress Data from Engine
     const progress = state.loadingProgress;
@@ -27,6 +36,138 @@ export const LoadingFX: React.FC = () => {
     // Calculate percentage - default to indeterminate loading if no progress data
     const percentage = progress ? Math.round((progress.current / progress.total) * 100) : 0;
     const hasProgress = progress !== null;
+    
+    // Capture console logs for API operations
+    useEffect(() => {
+      const originalLog = console.log;
+      const originalError = console.error;
+      const originalWarn = console.warn;
+      
+      // Safe stringify helper that handles circular references and large objects
+      const MAX_LOG_LENGTH = 500;
+      
+      const safeStringify = (arg: unknown): string => {
+        if (typeof arg === 'string') {
+          // Truncate plain strings while indicating when truncation occurs
+          if (arg.length <= MAX_LOG_LENGTH) return arg;
+          const boundary = arg.lastIndexOf(' ', MAX_LOG_LENGTH - 14);
+          const cutIndex = boundary > 0 ? boundary : MAX_LOG_LENGTH - 14;
+          return arg.slice(0, cutIndex) + '... [truncated]';
+        }
+
+        try {
+          const seen = new WeakSet<object>();
+          const json = JSON.stringify(
+            arg,
+            (_key, value) => {
+              if (typeof value === 'object' && value !== null) {
+                if (seen.has(value)) {
+                  return '[Circular]';
+                }
+                seen.add(value);
+              }
+              return value;
+            }
+          );
+
+          if (!json) return '';
+          if (json.length <= MAX_LOG_LENGTH) return json;
+
+          // Prefer truncating at a word boundary when possible
+          const boundary = json.lastIndexOf(' ', MAX_LOG_LENGTH - 14);
+          const cutIndex = boundary > 0 ? boundary : MAX_LOG_LENGTH - 14;
+          return json.slice(0, cutIndex) + '... [truncated]';
+        } catch {
+          // Fallback: best-effort string conversion with truncation
+          try {
+            const str = String(arg);
+            if (str.length <= MAX_LOG_LENGTH) return str;
+            const boundary = str.lastIndexOf(' ', MAX_LOG_LENGTH - 14);
+            const cutIndex = boundary > 0 ? boundary : MAX_LOG_LENGTH - 14;
+            return str.slice(0, cutIndex) + '... [truncated]';
+          } catch {
+            return '[Unserializable value]';
+          }
+        }
+      };
+      
+      const captureLog = (message: string, type: 'info' | 'success' | 'error' | 'warning') => {
+        // Only capture AI Service logs to avoid interfering with other libraries
+        if (message.includes('[AI Service]') || message.includes('[API Key Test]')) {
+          setApiLogs(prev => {
+            const newLogs = [...prev, {
+              timestamp: Date.now(),
+              message: message.replace('[AI Service]', '').replace('[API Key Test]', '').trim(),
+              type
+            }];
+            // Keep last 50 logs
+            return newLogs.slice(-50);
+          });
+        }
+      };
+      
+      // Use a global counter to avoid multiple wrapping layers
+      const globalAny = window as unknown as { __loadingFxConsoleWrapperCount?: number };
+      if (typeof globalAny.__loadingFxConsoleWrapperCount !== 'number') {
+        globalAny.__loadingFxConsoleWrapperCount = 0;
+      }
+      globalAny.__loadingFxConsoleWrapperCount += 1;
+
+      const isAlreadyWrapped =
+        (console.log as typeof console.log & { __loadingFxWrapped?: boolean }).__loadingFxWrapped &&
+        (console.error as typeof console.error & { __loadingFxWrapped?: boolean }).__loadingFxWrapped &&
+        (console.warn as typeof console.warn & { __loadingFxWrapped?: boolean }).__loadingFxWrapped;
+
+      const didWrap = !isAlreadyWrapped;
+
+      if (didWrap) {
+        const wrappedLog = (...args: unknown[]) => {
+          const message = args.map(safeStringify).join(' ');
+          captureLog(message, 'info');
+          originalLog.apply(console, args);
+        };
+        (wrappedLog as typeof wrappedLog & { __loadingFxWrapped: boolean }).__loadingFxWrapped = true;
+        console.log = wrappedLog as typeof console.log;
+
+        const wrappedError = (...args: unknown[]) => {
+          const message = args.map(safeStringify).join(' ');
+          captureLog(message, 'error');
+          originalError.apply(console, args);
+        };
+        (wrappedError as typeof wrappedError & { __loadingFxWrapped: boolean }).__loadingFxWrapped = true;
+        console.error = wrappedError as typeof console.error;
+
+        const wrappedWarn = (...args: unknown[]) => {
+          const message = args.map(safeStringify).join(' ');
+          captureLog(message, 'warning');
+          originalWarn.apply(console, args);
+        };
+        (wrappedWarn as typeof wrappedWarn & { __loadingFxWrapped: boolean }).__loadingFxWrapped = true;
+        console.warn = wrappedWarn as typeof console.warn;
+      }
+      
+      return () => {
+        const globalCleanupAny = window as unknown as { __loadingFxConsoleWrapperCount?: number };
+        if (typeof globalCleanupAny.__loadingFxConsoleWrapperCount === 'number') {
+          globalCleanupAny.__loadingFxConsoleWrapperCount -= 1;
+        }
+
+        // Only restore the original console methods if this instance performed
+        // the wrapping and no other instances are still mounted.
+        if (didWrap && globalCleanupAny.__loadingFxConsoleWrapperCount === 0) {
+          console.log = originalLog;
+          console.error = originalError;
+          console.warn = originalWarn;
+        }
+      };
+    }, []);
+    
+    // Auto-scroll logs to bottom
+    useEffect(() => {
+      if (showDetailedLogs && logContainerRef.current) {
+        logContainerRef.current.scrollTop = logContainerRef.current.scrollHeight;
+      }
+    }, [apiLogs, showDetailedLogs]);
 
     // Center the card after first render so it does not cover the same place every time
     useEffect(() => {
@@ -149,7 +290,7 @@ export const LoadingFX: React.FC = () => {
             `}</style>
             <div
               ref={cardRef}
-              className={`pointer-events-auto ${isCollapsed ? 'w-44 h-16' : 'w-[min(520px,95vw)]'} bg-white/95 border-4 border-black rounded-2xl shadow-2xl overflow-hidden transition-all duration-300`}
+              className={`pointer-events-auto ${isCollapsed ? 'w-44 h-16' : 'w-[min(640px,95vw)]'} bg-white/95 border-4 border-black rounded-2xl shadow-2xl overflow-hidden transition-all duration-300`}
               style={{
                 transform: `translate(${position.x}px, ${position.y}px)`
               }}
@@ -240,7 +381,59 @@ export const LoadingFX: React.FC = () => {
                             <div className="bg-rose-50 border border-black/10 rounded-md px-2 py-1">Quality check & polish</div>
                         </div>
 
-                        <div className="flex justify-end">
+                        {/* API Activity Log Section */}
+                        <div className="border-t-2 border-black/10 pt-3">
+                            <button
+                              onClick={() => setShowDetailedLogs(!showDetailedLogs)}
+                              className="w-full flex items-center justify-between text-sm font-comic font-semibold text-gray-700 hover:text-gray-900 mb-2"
+                            >
+                              <span>🔍 API Activity Log ({apiLogs.length})</span>
+                              <span className="text-xs">{showDetailedLogs ? '▼' : '▶'}</span>
+                            </button>
+                            
+                            {showDetailedLogs && (
+                              <div 
+                                ref={logContainerRef}
+                                className="bg-black/90 text-green-400 font-mono text-[10px] p-2 rounded max-h-48 overflow-y-auto space-y-1"
+                                style={{ scrollBehavior: 'smooth' }}
+                              >
+                                {apiLogs.length === 0 ? (
+                                  <div className="text-gray-500 italic">No API activity yet...</div>
+                                ) : (
+                                  apiLogs.map((log, idx) => {
+                                    const timeStr = new Date(log.timestamp).toLocaleTimeString('en-US', { 
+                                      hour12: false, 
+                                      hour: '2-digit', 
+                                      minute: '2-digit', 
+                                      second: '2-digit' 
+                                    });
+                                    const colorClass = 
+                                      log.type === 'error' ? 'text-red-400' :
+                                      log.type === 'warning' ? 'text-yellow-400' :
+                                      log.type === 'success' ? 'text-green-300' :
+                                      'text-blue-300';
+                                    
+                                    return (
+                                      <div key={idx} className="leading-tight">
+                                        <span className="text-gray-500">[{timeStr}]</span>{' '}
+                                        <span className={colorClass}>{log.message}</span>
+                                      </div>
+                                    );
+                                  })
+                                )}
+                              </div>
+                            )}
+                        </div>
+
+                        <div className="flex justify-between gap-2 pt-2">
+                            <button
+                              type="button"
+                              onClick={() => setApiLogs([])}
+                              className="comic-btn bg-gray-500 text-white px-3 py-1 text-xs font-bold hover:bg-gray-400"
+                              disabled={apiLogs.length === 0}
+                            >
+                              Clear Logs
+                            </button>
                             <button
                               type="button"
                               onClick={(e) => { e.stopPropagation(); actions.abortGeneration(); }}

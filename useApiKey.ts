@@ -81,21 +81,85 @@ export const useApiKey = () => {
       return;
     }
 
+    console.log('[API Key Test] Starting API key validation...');
+    console.log('[API Key Test] API key length:', candidateKey.length);
+    
     setIsTestingKey(true);
     setTestResult(null);
+    
+    const startTime = Date.now();
+    
     try {
+      console.log('[API Key Test] Creating GoogleGenAI client...');
       const ai = new GoogleGenAI({ apiKey: candidateKey });
+      
+      console.log('[API Key Test] Calling models.list() API...');
       const result = await ai.models.list({ config: { pageSize: 1 } });
+      
+      const elapsed = Date.now() - startTime;
+      console.log(`[API Key Test] API call completed in ${elapsed}ms`);
+      console.log('[API Key Test] Response summary:', {
+        modelsCount: result.models?.length ?? 0,
+        firstModelName: result.models?.[0]?.name ?? null,
+      });
+      
       const modelName = result.models?.[0]?.name || 'Gemini API';
+      
+      console.log(`[API Key Test] ✓ API key is valid - Model found: ${modelName}`);
+      
       if (typeof localStorage !== 'undefined') {
         localStorage.setItem('userApiKey', candidateKey);
+        console.log('[API Key Test] API key saved to localStorage');
       }
-      setTestResult(`API key verified! Access to ${modelName}.`);
+      
+      setTestResult(`✓ API key verified! Access to ${modelName}. Response time: ${elapsed}ms`);
     } catch (error) {
-      const message = error instanceof Error ? error.message : 'Unknown error while testing key.';
-      setTestResult(`API key test failed: ${message}`);
+      const elapsed = Date.now() - startTime;
+      console.error(`[API Key Test] ✗ Test failed after ${elapsed}ms:`, error);
+      
+      // Log detailed error information
+      if (error instanceof Error) {
+        console.error('[API Key Test] Error name:', error.name);
+        console.error('[API Key Test] Error message:', error.message);
+        // Only log stack trace in development to avoid exposing internal structure
+        if (import.meta.env.DEV) {
+          console.error('[API Key Test] Error stack:', error.stack);
+        }
+      }
+      
+      // Check for common error types using structured properties when available
+      const anyError = error as { status?: number; code?: string; message?: string } | undefined;
+      const status = typeof anyError?.status === 'number' ? anyError.status : undefined;
+      const code = typeof anyError?.code === 'string' ? anyError.code : undefined;
+      const message = typeof anyError?.message === 'string' ? anyError.message : undefined;
+      
+      let friendlyMessage = 'Unknown error while testing key.';
+      
+      if (status === 403 || code === 'PERMISSION_DENIED') {
+        friendlyMessage = 'Permission denied. This key may not have access to the Gemini API or requires billing to be enabled.';
+        console.error('[API Key Test] 403/Permission error detected');
+      } else if (status === 401 || code === 'UNAUTHENTICATED') {
+        friendlyMessage = 'Authentication failed. The API key appears to be invalid.';
+        console.error('[API Key Test] 401/Auth error detected');
+      } else if (status === 429 || code === 'RESOURCE_EXHAUSTED') {
+        friendlyMessage = 'Rate limit exceeded. Please wait a moment and try again.';
+        console.error('[API Key Test] 429/Rate limit error detected');
+      } else if (
+        code === 'OFFLINE' ||
+        (typeof status === 'number' && status === 0) ||
+        (typeof message === 'string' && /network|offline/i.test(message))
+      ) {
+        friendlyMessage = 'Network error. Please check your internet connection.';
+        console.error('[API Key Test] Network error detected');
+      } else if (error instanceof Error) {
+        // Fallback to the raw error message if we couldn't classify the error
+        friendlyMessage = error.message;
+      }
+      
+      setTestResult(`✗ API key test failed: ${friendlyMessage}`);
     } finally {
       setIsTestingKey(false);
+      console.log('[API Key Test] Test completed');
     }
   }, [apiKeyInput]);
 

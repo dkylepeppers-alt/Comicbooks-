@@ -272,7 +272,7 @@ export const useComicEngine = () => {
                 current: currentStep,
                 total,
                 label: `Writing Page ${pageNum}`,
-                substep: 'AI is crafting story beats...',
+                substep: `Calling Gemini API (${currentConfig.modelPresetModel || 'gemini-3-flash-preview'}) for story generation...`,
                 percentage,
                 startTime
             }
@@ -308,6 +308,19 @@ export const useComicEngine = () => {
 
         // Clean up beat generation controller
         activeControllersRef.current.delete(controllerKey);
+        
+        // Update progress after beat generation
+        dispatch({
+            type: 'SET_LOADING_PROGRESS',
+            payload: {
+                current: currentStep,
+                total,
+                label: `Writing Page ${pageNum}`,
+                substep: `✓ Story beat generated - ${beat.focus_char === 'hero' ? 'Hero' : beat.focus_char === 'friend' ? 'Sidekick' : 'Scene'} focused`,
+                percentage,
+                startTime
+            }
+        });
         
         let activeFriend = currentFriend;
         if (beat.focus_char === 'friend' && !activeFriend && type === 'story') {
@@ -352,7 +365,7 @@ export const useComicEngine = () => {
                 current: currentStep,
                 total,
                 label: `Inking Panel ${pageNum}`,
-                substep: 'Rendering artwork with AI...',
+                substep: `Calling Gemini API (gemini-3-pro-image-preview) for artwork generation...`,
                 percentage,
                 startTime
             }
@@ -367,6 +380,19 @@ export const useComicEngine = () => {
 
         // Clean up image controller
         activeControllersRef.current.delete(imageKey);
+        
+        // Update progress after image generation
+        dispatch({
+            type: 'SET_LOADING_PROGRESS',
+            payload: {
+                current: currentStep,
+                total,
+                label: `Inking Panel ${pageNum}`,
+                substep: `✓ Artwork rendered - Panel ${pageNum} complete!`,
+                percentage,
+                startTime
+            }
+        });
 
         batchHistory = batchHistory.map(f => f.id === faceId ? { ...f, imageUrl: url, isLoading: false } : f);
         dispatch({ type: 'UPDATE_FACE', payload: { id: faceId, updates: { imageUrl: url, isLoading: false } } });
@@ -432,7 +458,7 @@ export const useComicEngine = () => {
             current: 1,
             total: 3,
             label: "Painting Cover Art",
-            substep: 'Creating epic cover design...',
+            substep: 'Calling Gemini API (gemini-3-pro-image-preview) for cover design...',
             percentage: 33,
             startTime
         }
@@ -460,6 +486,19 @@ export const useComicEngine = () => {
         dispatch({ type: 'UPDATE_FACE', payload: { id: 'cover', updates: { imageUrl: url, isLoading: false } } });
         generatingPagesRef.current.delete(0);
         activeControllersRef.current.delete('cover-image');
+        
+        // Update after cover complete
+        dispatch({
+            type: 'SET_LOADING_PROGRESS',
+            payload: {
+                current: 2,
+                total: 3,
+                label: "Painting Cover Art",
+                substep: '✓ Epic cover art complete!',
+                percentage: 67,
+                startTime
+            }
+        });
     } catch (e) {
       logger.logError('Launch Error', e, { area: 'generation', action: 'launchStory' });
       activeControllersRef.current.delete('cover-image');
@@ -473,7 +512,7 @@ export const useComicEngine = () => {
             current: 2,
             total: 3,
             label: "Binding Pages",
-            substep: 'Preparing your comic book...',
+            substep: 'Preparing your comic book for reading...',
             percentage: 67,
             startTime
         }
