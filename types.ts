@@ -83,6 +83,8 @@ export interface ComicFace {
   isDecisionPage?: boolean;
 }
 
+export type AIProvider = 'gemini' | 'openrouter';
+
 export interface StoryConfig {
   genre: string;
   tone: string;
@@ -93,6 +95,10 @@ export interface StoryConfig {
   modelPresetId: string;
   modelPresetModel: string;
   modelPresetPrompt: string;
+  // Provider configuration
+  aiProvider: AIProvider;
+  textModel: string;  // Model for text generation
+  imageModel: string; // Model for image generation
 }
 
 export interface ModelPreset {

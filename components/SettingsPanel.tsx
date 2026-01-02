@@ -48,10 +48,15 @@ export const SettingsPanel: React.FC = () => {
   const [promptDraft, setPromptDraft] = React.useState('');
   const [modelDraft, setModelDraft] = React.useState('');
   
-  // API Key state
+  // API Key state for Gemini
   const [apiKeyInput, setApiKeyInput] = React.useState('');
   const [isTestingKey, setIsTestingKey] = React.useState(false);
   const [testResult, setTestResult] = React.useState<{ type: 'success' | 'error', message: string } | null>(null);
+  
+  // API Key state for OpenRouter
+  const [openRouterKeyInput, setOpenRouterKeyInput] = React.useState('');
+  const [isTestingOpenRouterKey, setIsTestingOpenRouterKey] = React.useState(false);
+  const [openRouterTestResult, setOpenRouterTestResult] = React.useState<{ type: 'success' | 'error', message: string } | null>(null);
 
   React.useEffect(() => {
     const preset = getPresetById(state.config.modelPresetId) || presets[0];
@@ -62,11 +67,16 @@ export const SettingsPanel: React.FC = () => {
     }
   }, [getPresetById, presets, state.config.modelPresetId]);
 
-  // Load API key from localStorage on mount
+  // Load API keys from localStorage on mount
   React.useEffect(() => {
     const storedKey = typeof localStorage !== 'undefined' ? localStorage.getItem('userApiKey') : '';
     if (storedKey) {
       setApiKeyInput(storedKey);
+    }
+    
+    const storedOpenRouterKey = typeof localStorage !== 'undefined' ? localStorage.getItem('openrouterApiKey') : '';
+    if (storedOpenRouterKey) {
+      setOpenRouterKeyInput(storedOpenRouterKey);
     }
   }, []);
 
@@ -156,6 +166,46 @@ export const SettingsPanel: React.FC = () => {
     }
   };
 
+  const handleTestOpenRouterKey = async () => {
+    const candidateKey = openRouterKeyInput.trim();
+    if (!candidateKey) {
+      setOpenRouterTestResult({ type: 'error', message: 'Please enter an OpenRouter API key to test.' });
+      return;
+    }
+
+    setIsTestingOpenRouterKey(true);
+    setOpenRouterTestResult(null);
+    try {
+      // Test OpenRouter API key by making a simple request
+      const response = await fetch('https://openrouter.ai/api/v1/models', {
+        headers: {
+          'Authorization': `Bearer ${candidateKey}`,
+        },
+      });
+      
+      if (response.ok) {
+        const data = await response.json();
+        const modelCount = data.data?.length || 0;
+        setOpenRouterTestResult({ type: 'success', message: `✓ OpenRouter API key verified! Access to ${modelCount} models.` });
+      } else {
+        setOpenRouterTestResult({ type: 'error', message: `✗ API key test failed: ${response.statusText}` });
+      }
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Unknown error while testing key.';
+      setOpenRouterTestResult({ type: 'error', message: `✗ API key test failed: ${message}` });
+    } finally {
+      setIsTestingOpenRouterKey(false);
+    }
+  };
+
+  const handleSaveOpenRouterKey = () => {
+    if (typeof localStorage !== 'undefined' && openRouterKeyInput.trim()) {
+      localStorage.setItem('openrouterApiKey', openRouterKeyInput.trim());
+      setOpenRouterTestResult({ type: 'success', message: '✓ OpenRouter API key saved for this browser.' });
+      actions.addNotification('success', 'OpenRouter API key saved successfully!', 3000);
+    }
+  };
+
   if (!isPanelOpen) return null;
 
   return (
@@ -188,6 +238,59 @@ export const SettingsPanel: React.FC = () => {
         </div>
 
         <div className="px-3 sm:px-4 py-3 sm:py-4 space-y-4 sm:space-y-5">
+          <Section title="AI Provider Configuration" description="Select your AI provider and models for text and image generation">
+            <div className="space-y-3">
+              <div>
+                <FieldLabel label="Provider" hint="Choose between Gemini or OpenRouter" />
+                <select
+                  value={state.config.aiProvider}
+                  onChange={e => actions.updateConfig({ aiProvider: e.target.value as 'gemini' | 'openrouter' })}
+                  className="w-full border border-gray-300 rounded-md px-2 py-2.5 sm:py-2 touch-manipulation min-h-[44px] sm:min-h-0"
+                >
+                  <option value="gemini">Gemini</option>
+                  <option value="openrouter">OpenRouter</option>
+                </select>
+              </div>
+              <div className="grid grid-cols-1 gap-2 sm:gap-3">
+                <div>
+                  <FieldLabel label="Text Generation Model" hint="Model for narrative/dialogue" />
+                  <input
+                    type="text"
+                    value={state.config.textModel}
+                    onChange={e => actions.updateConfig({ textModel: e.target.value })}
+                    className="w-full border border-gray-300 rounded-md px-2 py-2.5 sm:py-2 touch-manipulation min-h-[44px] sm:min-h-0"
+                    placeholder={state.config.aiProvider === 'gemini' ? 'gemini-3-flash-preview' : 'openai/gpt-4-turbo-preview'}
+                  />
+                </div>
+                <div>
+                  <FieldLabel label="Image Generation Model" hint="Model for visuals" />
+                  <input
+                    type="text"
+                    value={state.config.imageModel}
+                    onChange={e => actions.updateConfig({ imageModel: e.target.value })}
+                    className="w-full border border-gray-300 rounded-md px-2 py-2.5 sm:py-2 touch-manipulation min-h-[44px] sm:min-h-0"
+                    placeholder={state.config.aiProvider === 'gemini' ? 'gemini-3-pro-image-preview' : 'openai/dall-e-3'}
+                  />
+                </div>
+              </div>
+              {state.config.aiProvider === 'openrouter' && (
+                <div className="bg-blue-50 border border-blue-300 rounded p-3">
+                  <p className="text-xs text-blue-800 leading-relaxed">
+                    <strong>Note:</strong> OpenRouter requires its own API key. Get one from{' '}
+                    <a 
+                      href="https://openrouter.ai/keys" 
+                      target="_blank" 
+                      rel="noopener noreferrer"
+                      className="text-blue-600 hover:text-blue-800 underline font-semibold"
+                    >
+                      OpenRouter
+                    </a>
+                  </p>
+                </div>
+              )}
+            </div>
+          </Section>
+
           <Section title="Gemini API Key" description="Required for generating comics. Get your key from Google AI Studio">
             <div className="space-y-3">
               <div>
@@ -242,6 +345,66 @@ export const SettingsPanel: React.FC = () => {
                     className="text-blue-600 hover:text-blue-800 underline font-semibold"
                   >
                     Read the billing docs
+                  </a>
+                </p>
+              </div>
+            </div>
+          </Section>
+
+          <Section title="OpenRouter API Key" description="Required when using OpenRouter provider. Get your key from OpenRouter.ai">
+            <div className="space-y-3">
+              <div>
+                <FieldLabel label="OpenRouter API Key" hint="Keep this secret" />
+                <input
+                  type="password"
+                  value={openRouterKeyInput}
+                  onChange={(e) => setOpenRouterKeyInput(e.target.value)}
+                  className="w-full border border-gray-300 rounded-md px-3 py-2.5 sm:py-2 font-mono text-sm touch-manipulation min-h-[44px] sm:min-h-0"
+                  placeholder="sk-or-..."
+                />
+              </div>
+              <div className="flex flex-wrap items-center gap-2">
+                <button 
+                  className="comic-btn bg-blue-500 text-white text-xs sm:text-sm px-3 py-2.5 sm:py-2 hover:bg-blue-400 disabled:opacity-60 disabled:cursor-not-allowed touch-manipulation min-h-[44px] sm:min-h-0" 
+                  onClick={handleTestOpenRouterKey}
+                  disabled={isTestingOpenRouterKey}
+                >
+                  {isTestingOpenRouterKey ? '🔄 Testing...' : '🧪 Test Key'}
+                </button>
+                <button 
+                  className="comic-btn bg-green-500 text-white text-xs sm:text-sm px-3 py-2.5 sm:py-2 hover:bg-green-400 touch-manipulation min-h-[44px] sm:min-h-0" 
+                  onClick={handleSaveOpenRouterKey}
+                >
+                  💾 Save Key
+                </button>
+                <a
+                  href="https://openrouter.ai/keys"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-xs text-blue-600 hover:text-blue-800 underline ml-auto"
+                >
+                  Get API Key →
+                </a>
+              </div>
+              {openRouterTestResult && (
+                <div className={`p-3 rounded border text-sm font-mono ${
+                  openRouterTestResult.type === 'success' 
+                    ? 'bg-green-50 border-green-300 text-green-800' 
+                    : 'bg-red-50 border-red-300 text-red-800'
+                }`}>
+                  {openRouterTestResult.message}
+                </div>
+              )}
+              <div className="bg-blue-50 border border-blue-300 rounded p-3">
+                <p className="text-xs text-blue-800 leading-relaxed">
+                  <strong>Note:</strong> OpenRouter provides access to multiple AI models from different providers.{' '}
+                  <a 
+                    href="https://openrouter.ai/docs" 
+                    target="_blank" 
+                    rel="noopener noreferrer"
+                    className="text-blue-600 hover:text-blue-800 underline font-semibold"
+                  >
+                    Read the docs
                   </a>
                 </p>
               </div>

@@ -47,6 +47,10 @@ const initialState: ComicState = {
     modelPresetId: DEFAULT_MODEL_PRESETS[0]?.id || 'default-gemini-flash',
     modelPresetModel: DEFAULT_MODEL_PRESETS[0]?.model || 'gemini-3-flash-preview',
     modelPresetPrompt: DEFAULT_MODEL_PRESETS[0]?.prompt || '',
+    // Provider configuration defaults
+    aiProvider: 'gemini',
+    textModel: 'gemini-3-flash-preview',
+    imageModel: 'gemini-3-pro-image-preview',
   },
   loadingProgress: null,
   error: null,

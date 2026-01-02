@@ -13,6 +13,7 @@
   },
   "dependencies": {
     "@google/genai": "^1.27.0",
+    "@openrouter/sdk": "^0.3.11",
     "idb": "^8.0.0",
     "jspdf": "^3.0.3",
     "react": "^19.2.0",

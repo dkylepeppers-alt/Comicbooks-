@@ -4,6 +4,7 @@
 */
 
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
+import { AIProvider } from '../types';
 
 export type ThemeMode = 'light' | 'dark' | 'system';
 export type AnimationDensity = 'minimal' | 'balanced' | 'cinematic';
@@ -29,6 +30,10 @@ export interface Settings {
   pdfQuality: 'compact' | 'standard' | 'print';
   includeMetadata: boolean;
   defaultExportRange: ExportRange;
+  // AI Provider settings
+  aiProvider: AIProvider;
+  textModel: string;
+  imageModel: string;
 }
 
 interface SettingsContextValue {
@@ -64,6 +69,10 @@ const defaultSettings: Settings = {
   pdfQuality: 'standard',
   includeMetadata: true,
   defaultExportRange: 'all',
+  // AI Provider defaults
+  aiProvider: 'gemini',
+  textModel: 'gemini-3-flash-preview',
+  imageModel: 'gemini-3-pro-image-preview',
 };
 
 const SETTINGS_KEY = 'comicbook-settings-v1';
