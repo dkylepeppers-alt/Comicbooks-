@@ -3,12 +3,12 @@
  * SPDX-License-Identifier: Apache-2.0
 */
 
+import { GoogleGenAI } from '@google/genai';
+import { OpenRouter } from '@openrouter/sdk';
 import React from 'react';
 import { useBook } from '../context/BookContext';
 import { useModelPresets } from '../context/ModelPresetContext';
 import { useSettings } from '../context/SettingsContext';
-import { GoogleGenAI } from '@google/genai';
-import { OpenRouter } from '@openrouter/sdk';
 
 const CollapsibleSection: React.FC<{ 
   id: string;
@@ -481,7 +481,7 @@ export const SettingsPanel: React.FC = () => {
                         ))}
                       </select>
                       {modelSearch && filteredModels.length === 0 && (
-                        <p className="text-xs text-gray-600 mt-1">No models match "{modelSearch}"</p>
+                        <p className="text-xs text-gray-600 mt-1">No models match &quot;{modelSearch}&quot;</p>
                       )}
                     </>
                   ) : (

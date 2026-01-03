@@ -71,7 +71,7 @@ export async function compressImage(
 
           resolve(base64);
         } catch (error) {
-          reject(error);
+          reject(error instanceof Error ? error : new Error(String(error)));
         }
       };
 

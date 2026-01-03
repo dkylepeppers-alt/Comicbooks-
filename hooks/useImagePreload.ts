@@ -40,5 +40,6 @@ export const useImagePreload = (imageUrls: (string | undefined)[]) => {
     // Cleanup: no need to remove preloaded images as they're cached by browser
   }, [imageUrls]);
 
+  // eslint-disable-next-line -- Returning ref for read-only access is safe in this hook pattern
   return preloadedImagesRef.current;
 };

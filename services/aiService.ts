@@ -16,8 +16,8 @@ import {
   TIMEOUT_CONFIG,
   AIProvider
 } from '../types';
-import { retryWithBackoff } from '../utils/performanceUtils';
 import { OpenRouterService } from './openRouterService';
+import { retryWithBackoff } from '../utils/performanceUtils';
 
 const MODEL_IMAGE_GEN_NAME = "gemini-3-pro-image-preview";
 const MODEL_TEXT_NAME = "gemini-3-flash-preview";

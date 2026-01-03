@@ -3,8 +3,8 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { useState, useCallback } from 'react';
 import { OpenRouter } from '@openrouter/sdk';
+import { useState, useCallback } from 'react';
 import { ModelParameters } from '../types';
 
 interface OpenRouterModelInfo {
