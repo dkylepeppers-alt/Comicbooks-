@@ -124,13 +124,14 @@ function reducer(state: ComicState, action: ComicAction): ComicState {
       return { ...state, loadingProgress: action.payload };
     case 'SET_ERROR':
       return { ...state, error: action.payload, loadingProgress: null };
-    case 'ADD_NOTIFICATION':
+    case 'ADD_NOTIFICATION': {
       // Limit total notifications to prevent memory issues (keep last 10)
       const newNotifications = [...state.notifications, action.payload];
       if (newNotifications.length > 10) {
         newNotifications.shift(); // Remove oldest
       }
       return { ...state, notifications: newNotifications };
+    }
     case 'REMOVE_NOTIFICATION':
       return { ...state, notifications: state.notifications.filter(n => n.id !== action.payload) };
     case 'CLEAR_NOTIFICATIONS':

@@ -79,6 +79,8 @@ export default tseslint.config(
       ...reactPlugin.configs['jsx-runtime'].rules,
       'react/react-in-jsx-scope': 'off',
       'react/jsx-uses-react': 'off',
+      'react/prop-types': 'off', // TypeScript provides type checking
+      'react/display-name': 'off', // Not needed for TypeScript projects
 
       // React Hooks rules
       ...reactHooksPlugin.configs.recommended.rules,
@@ -128,6 +130,7 @@ export default tseslint.config(
       '@typescript-eslint/await-thenable': 'warn',
       '@typescript-eslint/no-redundant-type-constituents': 'warn',
       '@typescript-eslint/no-unnecessary-type-assertion': 'warn',
+      '@typescript-eslint/prefer-promise-reject-errors': 'error', // Enforce Error objects in Promise rejections
       '@typescript-eslint/no-unused-vars': [
         'warn',
         {
@@ -143,6 +146,7 @@ export default tseslint.config(
       // Relax React rules for practical use
       'react-hooks/purity': 'warn',
       'react-hooks/set-state-in-effect': 'warn',
+      'react/no-unescaped-entities': 'error', // Enforce proper escaping in JSX
       'jsx-a11y/no-autofocus': 'warn',
       'jsx-a11y/label-has-associated-control': 'warn',
     },
